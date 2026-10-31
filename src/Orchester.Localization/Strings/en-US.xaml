@@ -147,4 +147,5 @@
 <sys:String x:Key="RECOVERY_REQUIRED">Recovery required</sys:String>
 <sys:String x:Key="UNKNOWN_EXTERNAL_STATE">Unknown external state</sys:String>
 <sys:String x:Key="Navigation">Navigation</sys:String>
+<sys:String x:Key="DestinationExists">An existing file at the download destination differs from this image. Choose another download directory or preserve and move that file.</sys:String>
 </ResourceDictionary>

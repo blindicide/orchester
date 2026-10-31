@@ -147,4 +147,5 @@
 <sys:String x:Key="RECOVERY_REQUIRED">Требуется восстановление</sys:String>
 <sys:String x:Key="UNKNOWN_EXTERNAL_STATE">Неизвестное внешнее состояние</sys:String>
 <sys:String x:Key="Navigation">Навигация</sys:String>
+<sys:String x:Key="DestinationExists">В каталоге загрузки уже есть другой файл с таким именем. Выберите другой каталог или сохраните и переместите существующий файл.</sys:String>
 </ResourceDictionary>

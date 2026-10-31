@@ -56,7 +56,7 @@ public sealed class OperationStore {
   foreach(var line in await File.ReadAllLinesAsync(Path.Combine(Folder(id),"journal.jsonl"),ct)) {
    JournalEntry entry;
    try { entry=JsonSerializer.Deserialize<JournalEntry>(line,Lines) ?? throw new SafetyException("JournalIncomplete"); } catch(JsonException) { throw new SafetyException("JournalIncomplete"); }
-   if(entry.OperationId!=id || entry.Sequence!=result.Count+1) throw new SafetyException("JournalIncomplete");
+   if(entry.OperationId!=id || entry.Sequence!=result.Count+1 || !entry.Verified) throw new SafetyException("JournalIncomplete");
    if(result.Count==0 && entry.Phase!=OperationPhase.CREATED || result.Count>0 && !CanTransition(result[^1].Phase,entry.Phase)) throw new SafetyException("JournalIncomplete");
    result.Add(entry);
   }
@@ -67,6 +67,9 @@ public sealed class OperationStore {
   var bytes=Encoding.UTF8.GetBytes(JsonSerializer.Serialize(entry,Lines)+"\n");
   using var stream=new FileStream(Path.Combine(folder,"journal.jsonl"),FileMode.Append,FileAccess.Write,FileShare.Read,4096,FileOptions.WriteThrough);
   await stream.WriteAsync(bytes,ct); stream.Flush(true);
+  // Supplementary readable log; JSONL remains authoritative for recovery.
+  var readable=$"{entry.Timestamp:O} [{entry.Component}] {entry.Phase}: {entry.ActionCode} verified={entry.Verified}\n";
+  await File.AppendAllTextAsync(Path.Combine(folder,"journal.log"),readable,ct);
  }
  private static async Task WriteManifestAsync(string folder,OperationManifest manifest,CancellationToken ct) {
   var path=Path.Combine(folder,"manifest.json");

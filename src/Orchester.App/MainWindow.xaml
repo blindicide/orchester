@@ -1,4 +1,4 @@
-<Window x:Class="Orchester.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="ORCHESTER" Width="1180" Height="820" MinWidth="850" MinHeight="600">
+<Window x:Class="Orchester.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="ORCHESTER" Language="{Binding InterfaceXmlLanguage}" Width="1180" Height="820" MinWidth="850" MinHeight="600">
  <Window.Resources>
   <DataTemplate x:Key="Map"><Border Width="{Binding Width}" Height="105" Background="#356895" BorderBrush="White" BorderThickness="1" Padding="3" ToolTip="{Binding Label}" AutomationProperties.Name="{Binding Label}"><TextBlock Text="{Binding Label}" Foreground="White" FontSize="11" TextTrimming="CharacterEllipsis"/></Border></DataTemplate>
   <ItemsPanelTemplate x:Key="HorizontalMap"><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>

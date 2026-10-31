@@ -4,7 +4,7 @@ using Orchester.App;
 using Orchester.Localization;
 public static class Program {
  [STAThread] public static void Main() {
-  var app=new App();app.InitializeComponent();
+  var app=new App();app.InitializeComponent();app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
   foreach(var culture in new[]{"en-US","ru-RU"}) {
    LanguageManager.Current.SetLanguage(culture);
    var window=new MainWindow();

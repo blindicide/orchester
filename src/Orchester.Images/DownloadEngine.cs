@@ -10,6 +10,10 @@ public sealed class DownloadEngine(HttpClient client) {
   if(digest.Length!=64 || !digest.All(Uri.IsHexDigit) || trust==TrustLevel.Unverified) throw new SafetyException("TrustedDigestRequired");
   if(bandwidthBytesPerSecond<0) throw new ArgumentOutOfRangeException(nameof(bandwidthBytesPerSecond));
   var full=Path.GetFullPath(destination); Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+  if(File.Exists(full)) {
+   try { return await ImageVerifier.VerifyAsync(full,digest,profileId,trust,ct); }
+   catch(SafetyException e) when(e.Code=="ChecksumMismatch") { throw new SafetyException("DestinationExists"); }
+  }
   // A digest-specific partial file prevents combining downloads of different releases.
   var partial=full+"."+digest.ToLowerInvariant()+".partial";
   using var output=new FileStream(partial,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None,1024*1024,FileOptions.Asynchronous);
@@ -40,6 +44,6 @@ public sealed class DownloadEngine(HttpClient client) {
   VerifiedImage image;
   try { image=await ImageVerifier.VerifyAsync(partial,digest,profileId,trust,ct); }
   catch(SafetyException e) when(e.Code=="ChecksumMismatch") { File.Delete(partial); throw; }
-  File.Move(partial,full,true); return image with { Path=full };
+  File.Move(partial,full,false); return image with { Path=full };
  }
 }

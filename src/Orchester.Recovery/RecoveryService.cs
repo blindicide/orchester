@@ -18,7 +18,14 @@ public sealed class RecoveryService(OperationStore store) {
  public async Task ExportRedactedAsync(string destination,HostSnapshot host,IEnumerable<DiskSnapshot> disks,CancellationToken ct) {
   // Explicit allowlist: never serialize manifests, local image paths, mount points or credentials.
   string Alias(string value)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..12];
-  var payload=new { SchemaVersion=1,ExportedAt=DateTimeOffset.UtcNow,Host=host,Disks=disks.Select(d=>new {Disk=Alias(d.StableId),d.Capacity,d.LogicalSector,d.PhysicalSector,d.PartitionStyle,d.Health,Partitions=d.Partitions.Select(p=>new {p.Number,p.Offset,p.Length,p.Type,p.FileSystem,p.Health,p.Encryption})}),Operations=await InspectAsync(ct) };
+  var history=new List<object>();
+  foreach(var id in store.ListOperations()) {
+   try {
+    var entries=await store.ReadJournalAsync(id,ct);
+    history.Add(new { Operation=id,Phases=entries.Select(e=>new {e.Sequence,e.Timestamp,e.Phase,e.Verified}) });
+   } catch(Exception e) when(e is IOException or SafetyException or JsonException) { history.Add(new {Operation=id,State="RECOVERY_REQUIRED"}); }
+  }
+  var payload=new { History=history,SchemaVersion=1,ExportedAt=DateTimeOffset.UtcNow,Host=host,Disks=disks.Select(d=>new {Disk=Alias(d.StableId),d.Capacity,d.LogicalSector,d.PhysicalSector,d.PartitionStyle,d.Health,Partitions=d.Partitions.Select(p=>new {p.Number,p.Offset,p.Length,p.Type,p.FileSystem,p.Health,p.Encryption})}),Operations=await InspectAsync(ct) };
   await File.WriteAllTextAsync(destination,JsonSerializer.Serialize(payload,OperationStore.Json),ct);
  }
 }

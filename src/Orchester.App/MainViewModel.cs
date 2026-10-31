@@ -37,7 +37,8 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private VerifiedImage? image;
  private HostSnapshot? host;
  private int stage,section;
- private bool busy,approved,digestTrusted;
+ private bool busy,approved,digestTrusted,relabeling;
+ private ImmutableArray<RecoveryRecord> operationRecords=[];
  private string status="Ready",statusDetail="",distribution="",isoPath="",digest="",size="40";
  private ReleaseProfile? release;
  private DiskSnapshot? disk;
@@ -56,6 +57,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public ObservableCollection<string> Inventory { get; }=[];
  public string[] Languages { get; }=["en-US","ru-RU"];
  public string Language { get=>l.Language; set { l.SetLanguage(value); Settings.Language=l.Language; Changed(); RefreshText(); } }
+ public System.Windows.Markup.XmlLanguage InterfaceXmlLanguage=>System.Windows.Markup.XmlLanguage.GetLanguage(Language);
  public bool Dark { get=>Settings.Dark; set { Settings.Dark=value; App.ApplyTheme(value); Changed(); } }
  public int Section { get=>section; set {section=value;Changed();Changed(nameof(InstallVisibility));Changed(nameof(ManageVisibility));Changed(nameof(DisksVisibility));Changed(nameof(RecoveryVisibility));Changed(nameof(SettingsVisibility));} }
  public Visibility InstallVisibility=>Section==0?Visibility.Visible:Visibility.Collapsed;
@@ -83,8 +85,8 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public string IsoPath { get=>isoPath;set {isoPath=value;image=null;InvalidatePlan();Changed();} }
  public string Digest { get=>digest;set {digest=value.Trim();image=null;InvalidatePlan();Changed();} }
  public bool DigestTrusted { get=>digestTrusted;set {digestTrusted=value;image=null;InvalidatePlan();Changed();} }
- public Choice<DiskSnapshot>? SelectedDisk { get=>Disks.FirstOrDefault(d=>d.Value==disk);set {disk=value?.Value;Partitions.Clear();if(disk is not null)foreach(var p in disk.Partitions)Partitions.Add(new(p,PartitionLabel(p)));SelectedPartition=Partitions.FirstOrDefault(p=>p.Value.FileSystem=="NTFS"&&!p.Value.Protected);InvalidatePlan();RefreshMaps();Changed();} }
- public Choice<PartitionSnapshot>? SelectedPartition { get=>Partitions.FirstOrDefault(p=>p.Value==partition);set {partition=value?.Value;InvalidatePlan();Changed();} }
+ public Choice<DiskSnapshot>? SelectedDisk { get=>Disks.FirstOrDefault(d=>d.Value==disk);set {if(relabeling)return;disk=value?.Value;Partitions.Clear();if(disk is not null)foreach(var p in disk.Partitions)Partitions.Add(new(p,PartitionLabel(p)));SelectedPartition=Partitions.FirstOrDefault(p=>p.Value.FileSystem=="NTFS"&&!p.Value.Protected);InvalidatePlan();RefreshMaps();Changed();} }
+ public Choice<PartitionSnapshot>? SelectedPartition { get=>Partitions.FirstOrDefault(p=>p.Value==partition);set {if(relabeling)return;partition=value?.Value;InvalidatePlan();Changed();} }
  public string SizeGiB { get=>size;set {size=value;InvalidatePlan();Changed();} }
  public bool Approved { get=>approved;set {approved=value;Changed();CommandManager.InvalidateRequerySuggested();} }
  public ICommand RefreshCommand { get; }
@@ -184,7 +186,10 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   await Run(async ct=> {if(savedOperation is Guid id)await store.TransitionAsync(id,OperationPhase.CANCELLED,"OperationCancelled",ct);InvalidatePlan();Stage=0;SetStatus("Cancelled");await InspectAsync(ct);});
  }
  private async Task InspectAsync(CancellationToken ct) {
-  Operations.Clear();foreach(var record in await new RecoveryService(store).InspectAsync(ct))Operations.Add(string.Format(l["SavedOperation"],record.OperationId,l[record.Phase.ToString()],l[record.DryRun?"DryRun":"Unverified"]));
+  operationRecords=await new RecoveryService(store).InspectAsync(ct);RenderOperations();
+ }
+ private void RenderOperations() {
+  Operations.Clear();foreach(var record in operationRecords)Operations.Add(string.Format(l["SavedOperation"],record.OperationId,l[record.Phase.ToString()],l[record.DryRun?"DryRun":"Unverified"]));
   if(Operations.Count==0)Operations.Add(l["NoOperations"]);
  }
  private async Task ExportAsync(CancellationToken ct) {
@@ -195,7 +200,14 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private string DiskLabel(DiskSnapshot d)=>string.Format(l["DiskSummary"],d.Number,d.Name,d.Capacity/1073741824d,d.PartitionStyle,d.Health=="Healthy"?l["Healthy"]:l["Unknown"]);
  private string PartitionLabel(PartitionSnapshot p)=>string.Format(l["PartitionSummary"],p.Number,p.FileSystem,p.Length/1073741824d,p.ShrinkBytes is long limit?$"{limit/1073741824d:N1} GiB":l["Unknown"],l[p.Encryption==EncryptionState.Unknown?"UnknownEncryption":p.Encryption.ToString()]);
  private void RefreshInventory(){Inventory.Clear();foreach(var d in Disks){Inventory.Add(DiskLabel(d.Value));foreach(var p in d.Value.Partitions)Inventory.Add(PartitionLabel(p));}}
- private void RefreshText(){Changed(nameof(Status));Changed(nameof(StageTitle));Changed(nameof(HostText));RefreshInventory();RefreshMaps();}
+ private void RefreshText(){
+  relabeling=true;
+  try {
+   var disks=Disks.Select(d=>d.Value).ToArray();Disks.Clear();foreach(var d in disks)Disks.Add(new(d,DiskLabel(d)));
+   var partitions=Partitions.Select(p=>p.Value).ToArray();Partitions.Clear();foreach(var p in partitions)Partitions.Add(new(p,PartitionLabel(p)));
+  } finally {relabeling=false;}
+  Changed(nameof(SelectedDisk));Changed(nameof(SelectedPartition));RenderOperations();
+  Changed(nameof(InterfaceXmlLanguage));Changed(nameof(Status));Changed(nameof(StageTitle));Changed(nameof(HostText));RefreshInventory();RefreshMaps();}
  private void RefreshMaps() {
   CurrentMap.Clear();ProposedMap.Clear();Changes.Clear();if(disk is null)return;
   double width=500d/disk.Capacity;

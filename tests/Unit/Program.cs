@@ -37,6 +37,8 @@ try {
  Refuses(()=>Planner.Create(disk with { Partitions=[partition with { ShrinkBytes=null }] },partition.Id,40*GiB,profile,image),"UnsafeSource");
  Refuses(()=>Planner.Create(disk with { BusType="RAID" },partition.Id,40*GiB,profile,image),"UnsupportedDisk");
  Refuses(()=>PlanGuard.ValidateDisk(disk with { Partitions=[partition,partition with {Number=4,Id=Guid.NewGuid()}] }),"InvalidGeometry");
+ var malicious=plan with {Changes=[new("FormatEsp",Guid.NewGuid(),0,GiB,true)]};
+ Refuses(()=>PlanGuard.Validate(malicious,disk,PlanGuard.Fingerprint(malicious),false),"PlanChanged");
  Refuses(()=>PlanGuard.Validate(plan,disk,fingerprint,true),"ExecutionUnavailable");
  Refuses(()=>HelperPolicy.Authorize(new(1,Guid.NewGuid(),fingerprint,HelperCommand.Inspect),plan,disk),"UnauthorizedRequest");
  Refuses(()=>DistributionAdapter.For(profile).ValidateHost(new("Windows",true,true,true,true),profile with {SecureBoot=false}),"SecureBootUnsupported");
@@ -55,6 +57,10 @@ try {
  var reportText=await File.ReadAllTextAsync(report);Check(!reportText.Contains(path)&&!reportText.Contains(disk.StableId),"diagnostic allowlist redacts paths and device identity");
  await File.AppendAllTextAsync(Path.Combine(root,"operations",plan.OperationId.ToString(),"journal.jsonl"),"{truncated");
  Check(!(await new RecoveryService(store).InspectAsync(default))[0].Consistent,"interrupted journal requires recovery");
+ var isoPath=Path.Combine(root,"fixture.iso");await File.WriteAllBytesAsync(isoPath,IsoFixture.Create());
+ var goodIso=await IsoInspector.InspectAsync(isoPath,profile,default);Check(goodIso.Compatible,"valid x64 ISO profile inspection");
+ var wrongArch=IsoFixture.Create();wrongArch[25*2048+128+4]=0x4c;wrongArch[25*2048+128+5]=0x01;await File.WriteAllBytesAsync(isoPath,wrongArch);
+ Check(!(await IsoInspector.InspectAsync(isoPath,profile,default)).Compatible,"x86 EFI rejected for x64 image");
  var malformed=await IsoInspector.InspectAsync(path,profile,default);Check(!malformed.Compatible,"unsupported image rejected");
  // Exercise download resume when a server ignores the Range header: old bytes must be discarded.
  string destination=Path.Combine(root,"download.iso");await File.WriteAllBytesAsync(destination+"."+hash.ToLowerInvariant()+".partial",[9,9,9]);
@@ -65,6 +71,8 @@ try {
  using var ranged=new HttpClient(new FakeHttp(bytes,true));
  await new DownloadEngine(ranged).DownloadAsync(new("https://example.org/image.iso"),destination2,hash,profile.Id,TrustLevel.UserAuthenticatedDigest,null,0,default);
  Check((await File.ReadAllBytesAsync(destination2)).SequenceEqual(bytes),"valid partial content resumes and rehashes entire image");
+ await RefusesAsync(()=>new DownloadEngine(http).DownloadAsync(new("https://example.org/image.iso"),destination,new string('0',64),profile.Id,TrustLevel.UserAuthenticatedDigest,null,0,default),"DestinationExists");
+ Check((await File.ReadAllBytesAsync(destination)).SequenceEqual(bytes),"existing destination preserved");
  using var rsa=RSA.Create(2048);var catalog=Encoding.UTF8.GetBytes("{}");
  Refuses(()=>CatalogService.VerifyUpdate(catalog,new byte[256],rsa),"CatalogSignatureInvalid");
  Console.WriteLine($"{passed} checks passed.");
@@ -75,5 +83,19 @@ sealed class FakeHttp(byte[] data,bool range=false) : HttpMessageHandler {
   var response=new HttpResponseMessage(range?HttpStatusCode.PartialContent:HttpStatusCode.OK){RequestMessage=request,Content=new ByteArrayContent(data[start..])};
   if(range)response.Content.Headers.ContentRange=new ContentRangeHeaderValue(start,data.Length-1,data.Length);
   return Task.FromResult(response);
+ }
+}
+
+static class IsoFixture {
+ public static byte[] Create() {
+  var image=new byte[32*2048];
+  void Both32(int offset,uint value){System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(offset,4),value);System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(image.AsSpan(offset+4,4),value);}
+  int Entry(int offset,string name,uint extent,uint length,bool directory){var id=Encoding.ASCII.GetBytes(name);int len=33+id.Length;if(len%2!=0)len++;image[offset]=(byte)len;Both32(offset+2,extent);Both32(offset+10,length);image[offset+25]=directory?(byte)2:(byte)0;image[offset+32]=(byte)id.Length;id.CopyTo(image,offset+33);return len;}
+  int pvd=16*2048;image[pvd]=1;Encoding.ASCII.GetBytes("CD001").CopyTo(image,pvd+1);image[pvd+6]=1;image[pvd+129]=8;image[pvd+130]=8;Entry(pvd+156,"\0",20,2048,true);
+  int root=20*2048;root+=Entry(root,"EFI",21,2048,true);Entry(root,"CASPER",23,2048,true);
+  Entry(21*2048,"BOOT",22,2048,true);Entry(22*2048,"BOOTX64.EFI;1",25,512,false);
+  int casper=23*2048;casper+=Entry(casper,"VMLINUZ;1",26,32,false);Entry(casper,"INITRD;1",27,32,false);
+  int efi=25*2048;image[efi]=(byte)'M';image[efi+1]=(byte)'Z';image[efi+60]=128;image[efi+128]=(byte)'P';image[efi+129]=(byte)'E';image[efi+132]=0x64;image[efi+133]=0x86;
+  return image;
  }
 }

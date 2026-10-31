@@ -17,7 +17,7 @@ public static class CatalogService {
   var catalog=JsonSerializer.Deserialize<Catalog>(bytes,new JsonSerializerOptions { PropertyNameCaseInsensitive=true,Converters={new JsonStringEnumConverter()} }) ?? throw new SafetyException("CatalogInvalid");
   if(catalog.SchemaVersion!=1 || catalog.Releases.IsDefaultOrEmpty || catalog.Releases.Select(x=>x.Id).Distinct().Count()!=catalog.Releases.Length) throw new SafetyException("CatalogInvalid");
   foreach(var p in catalog.Releases) {
-   if(p.Architecture!="x86-64" || p.DownloadUrl.Scheme!="https" || p.ChecksumUrl.Scheme!="https" || p.MinimumStorageBytes<=0 || p.AdapterVersion!="0.1.0" || p.Modes.IsDefaultOrEmpty || !SafePath(p.KernelPath) || !SafePath(p.InitrdPath)) throw new SafetyException("CatalogInvalid");
+   if(!System.Text.RegularExpressions.Regex.IsMatch(p.Id,@"\A[a-z0-9]+(?:-[a-z0-9.]+)+\z") || p.Id.Length>100 || p.Architecture!="x86-64" || p.DownloadUrl.Scheme!="https" || p.ChecksumUrl.Scheme!="https" || p.MinimumStorageBytes<=0 || p.AdapterVersion!="0.1.0" || p.Modes.IsDefaultOrEmpty || !SafePath(p.KernelPath) || !SafePath(p.InitrdPath)) throw new SafetyException("CatalogInvalid");
   }
   return catalog.Releases;
  }
