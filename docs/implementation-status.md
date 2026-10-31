@@ -16,7 +16,7 @@ Specification supplied 2026-11-01. The initial repository was empty. The impleme
 | 11 architecture | All named projects, .NET 10/MSBuild solution, JSON, WPF resources and GitHub Actions | Production IPC executable and full system integration |
 | 12 settings/diagnostics | Language, theme, directories, bandwidth and preference persistence; host/disk/operation inspection; redacted JSON export | Implement update checking and automatic image retention actions after lifecycle completion; readable live execution logs |
 | 13 installations | Saved operation inspection explicitly distinguished from installation evidence; no removal | OS identification, verified root/boot association and installed-system inventory |
-| 14 performance | Streaming hashing/downloading, bounded ISO directories, no background service | Benchmark reference hardware; discovery currently has a 30-second cancellation timeout rather than a demonstrated five-second target |
+| 14 performance | Streaming hashing/downloading, bounded ISO directories, no background service | Benchmark reference hardware; inventory has a 30-second cancellation timeout and supported-host safety queries have a 180-second budget rather than a demonstrated five-second target |
 | 15 tests | Portable deterministic safety harness, localization/XML checks, Windows and Linux CI, documented integration/VM matrix | Actual VM installation tests, Secure Boot/BitLocker tests and physical hardware evidence |
 | 16–18 roadmap/acceptance | Foundation preview and release checklist | v0.2–v1.0 acceptance gates remain open; no advertised production-validated releases |
 

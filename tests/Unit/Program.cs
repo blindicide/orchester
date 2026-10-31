@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using Orchester.Core;
+using Orchester.Storage;
 using Orchester.Engine;
 using Orchester.Images;
 using Orchester.Recovery;
@@ -24,6 +25,8 @@ try {
  await RefusesAsync(()=>ImageVerifier.VerifyAsync(path,hash,"ubuntu-test",TrustLevel.Unverified,default),"TrustedDigestRequired");
  var partition=new PartitionSnapshot(3,Guid.NewGuid(),"{EBD0A0A2-B9E5-4433-87C0-68B6B72699C7}",GiB,200*GiB,"NTFS","C","Healthy",EncryptionState.Unencrypted,100*GiB,false,true);
  var disk=new DiskSnapshot(0,"stable-test-device","Test disk",256*GiB,512,4096,"GPT","NVMe","Healthy",false,false,[partition]);
+ var providerJson=System.Text.Json.JsonSerializer.Serialize(new[]{disk}).Replace(partition.Id.ToString(),"{"+partition.Id+"}");
+ Check(WindowsStorageDiscovery.ParseInventory(providerJson)[0].Partitions[0].Id==partition.Id,"Windows brace-form GUID normalized before JSON conversion");
  var profile=new ReleaseProfile("ubuntu-test","Ubuntu Test","1","x86-64",new("https://example.org/image.iso"),new("https://example.org/SHA256SUMS"),"Subiquity","/casper/vmlinuz","/casper/initrd",25*GiB,true,"0.1.0",false,[InstallationMode.Guided]);
  var plan=Planner.Create(disk,partition.Id,40*GiB,profile,image);var fingerprint=PlanGuard.Fingerprint(plan);
  PlanGuard.Validate(plan,disk,fingerprint,false);Check(plan.DryRun,"valid immutable dry-run plan");

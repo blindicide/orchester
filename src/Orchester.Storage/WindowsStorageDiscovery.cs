@@ -42,13 +42,16 @@ public sealed class WindowsStorageDiscovery(bool includeSafetyDetails=true) : IS
   try { await process.WaitForExitAsync(timeout.Token); } catch { if(!process.HasExited) process.Kill(true); throw; }
   var json=await output; await error; // Never surface raw PowerShell output, which may contain personal paths.
   if(process.ExitCode!=0) throw new SafetyException("DiscoveryFailed");
+  return ParseInventory(json);
+ }
+ public static ImmutableArray<DiskSnapshot> ParseInventory(string json) {
   var options=new JsonSerializerOptions { PropertyNameCaseInsensitive=true, Converters={new System.Text.Json.Serialization.JsonStringEnumConverter()} };
   // Missing GPT GUIDs on unsupported disks are represented as empty for diagnostic display.
   using var doc=JsonDocument.Parse(json);
   var result=ImmutableArray.CreateBuilder<DiskSnapshot>();
   foreach(var element in doc.RootElement.EnumerateArray()) {
    var node=System.Text.Json.Nodes.JsonNode.Parse(element.GetRawText())!;
-   foreach(var p in node["Partitions"]!.AsArray()) if(!Guid.TryParse(p!["Id"]?.GetValue<string>(),out _)) p["Id"]=Guid.Empty.ToString();
+   foreach(var p in node["Partitions"]!.AsArray()) p!["Id"]=(Guid.TryParse(p["Id"]?.GetValue<string>(),out var id)?id:Guid.Empty).ToString("D");
    result.Add(node.Deserialize<DiskSnapshot>(options) ?? throw new SafetyException("DiscoveryFailed"));
   }
   return result.ToImmutable();

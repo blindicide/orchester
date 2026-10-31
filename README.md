@@ -35,7 +35,7 @@ dotnet run --project tests/Unit/Orchester.Tests.csproj -c Release
 python tests/check_resources.py
 ```
 
-The portable core checks also run on Linux with .NET 10. WPF requires Windows. GitHub Actions builds on Windows, runs core safety checks on both platforms and publishes a self-contained x64 preview artifact.
+The portable core checks also run on Linux with .NET 10. WPF requires Windows. The Windows CI runner uses Windows Server for building, rendering and read-only diagnostics; it does not qualify Windows 10/11 installation support. GitHub Actions builds on Windows, runs core safety checks on both platforms and publishes a self-contained x64 preview artifact.
 
 ## Dry-run workflow
 
