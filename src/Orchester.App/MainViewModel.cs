@@ -20,15 +20,17 @@ using Orchester.Storage;
 namespace Orchester.App;
 public sealed class AsyncCommand(Func<Task> action,Func<bool>? enabled=null) : ICommand {
  public bool CanExecute(object? parameter)=>enabled?.Invoke()??true;
- public async void Execute(object? parameter)=>await action();
+ public async void Execute(object? parameter)=>await ExecuteAsync();
+ public Task ExecuteAsync()=>CanExecute(null)?action():Task.CompletedTask;
  public event EventHandler? CanExecuteChanged { add=>CommandManager.RequerySuggested+=value; remove=>CommandManager.RequerySuggested-=value; }
 }
 public sealed record Choice<T>(T Value,string Label);
 public sealed record MapSegment(string Label,double Width,bool Proposed);
 public sealed class MainViewModel : INotifyPropertyChanged {
  private readonly LanguageManager l=LanguageManager.Current;
- private readonly OperationStore store=new(Path.Combine(App.DataRoot,"Operations"));
- private readonly WindowsStorageDiscovery storage=new();
+ private readonly OperationStore store;
+ private readonly IStorageDiscovery storage;
+ private readonly Func<HostSnapshot> inspectHost;
  private static readonly HttpClient Http=new(new HttpClientHandler { AllowAutoRedirect=false }) { Timeout=Timeout.InfiniteTimeSpan };
  private CancellationTokenSource? active;
  private InstallationPlan? plan;
@@ -101,7 +103,10 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public ICommand InspectCommand { get; }
  public ICommand ExportCommand { get; }
  public ICommand SaveSettingsCommand { get; }
- public MainViewModel() {
+ public MainViewModel(IStorageDiscovery? storageDiscovery=null,Func<HostSnapshot>? hostInspector=null,OperationStore? operationStore=null) {
+  storage=storageDiscovery??new WindowsStorageDiscovery();
+  inspectHost=hostInspector??HostInspector.Inspect;
+  store=operationStore??new OperationStore(Path.Combine(App.DataRoot,"Operations"));
   Catalog=CatalogService.LoadBundled(Path.Combine(AppContext.BaseDirectory,"catalog.json"));
   foreach(var d in Catalog.Select(p=>p.Distribution).Distinct()) Distributions.Add(d);
   Distribution=Distributions[0];
@@ -131,7 +136,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private void SetStatus(string code,string detail="") {status=code;statusDetail=detail;Changed(nameof(Status));}
  private void InvalidatePlan() {plan=null;approvedFingerprint=null;Approved=false;savedOperation=null;Changes.Clear();ProposedMap.Clear();}
  private async Task RefreshAsync(CancellationToken ct) {
-  InvalidatePlan();host=HostInspector.Inspect();Changed(nameof(HostText));
+  InvalidatePlan();host=inspectHost();Changed(nameof(HostText));
   var disks=await storage.DiscoverAsync(ct);Disks.Clear();
   foreach(var d in disks)Disks.Add(new(d,DiskLabel(d)));
   SelectedDisk=Disks.FirstOrDefault();RefreshInventory();await InspectAsync(ct);
