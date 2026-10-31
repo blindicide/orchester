@@ -64,4 +64,3 @@ public static class Program {
 sealed class FixtureStorage(DiskSnapshot disk) : IStorageDiscovery {
  public Task<ImmutableArray<DiskSnapshot>> DiscoverAsync(CancellationToken ct)=>Task.FromResult(ImmutableArray.Create(disk));
 }
-
