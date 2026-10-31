@@ -146,4 +146,5 @@
 <sys:String x:Key="CANCELLED">Cancelled</sys:String>
 <sys:String x:Key="RECOVERY_REQUIRED">Recovery required</sys:String>
 <sys:String x:Key="UNKNOWN_EXTERNAL_STATE">Unknown external state</sys:String>
+<sys:String x:Key="Navigation">Navigation</sys:String>
 </ResourceDictionary>

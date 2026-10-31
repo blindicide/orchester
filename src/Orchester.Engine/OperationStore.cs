@@ -57,6 +57,7 @@ public sealed class OperationStore {
    JournalEntry entry;
    try { entry=JsonSerializer.Deserialize<JournalEntry>(line,Lines) ?? throw new SafetyException("JournalIncomplete"); } catch(JsonException) { throw new SafetyException("JournalIncomplete"); }
    if(entry.OperationId!=id || entry.Sequence!=result.Count+1) throw new SafetyException("JournalIncomplete");
+   if(result.Count==0 && entry.Phase!=OperationPhase.CREATED || result.Count>0 && !CanTransition(result[^1].Phase,entry.Phase)) throw new SafetyException("JournalIncomplete");
    result.Add(entry);
   }
   return result.ToImmutable();

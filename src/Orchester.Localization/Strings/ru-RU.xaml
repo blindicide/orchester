@@ -146,4 +146,5 @@
 <sys:String x:Key="CANCELLED">Отменено</sys:String>
 <sys:String x:Key="RECOVERY_REQUIRED">Требуется восстановление</sys:String>
 <sys:String x:Key="UNKNOWN_EXTERNAL_STATE">Неизвестное внешнее состояние</sys:String>
+<sys:String x:Key="Navigation">Навигация</sys:String>
 </ResourceDictionary>
