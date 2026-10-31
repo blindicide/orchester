@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Orchester.Core;
 namespace Orchester.Storage;
-public sealed class WindowsStorageDiscovery : IStorageDiscovery {
+public sealed class WindowsStorageDiscovery(bool includeSafetyDetails=true) : IStorageDiscovery {
  // Fixed, read-only script. User input is never interpolated into PowerShell.
  private const string Script = """
  $ErrorActionPreference='Stop'
@@ -15,7 +15,7 @@ public sealed class WindowsStorageDiscovery : IStorageDiscovery {
   $parts=@(Get-Partition -DiskNumber $d.Number -ErrorAction Stop | ForEach-Object {
    $p=$_; $v=$null; $limit=$null; $enc='Unknown'
    try { $v=$p | Get-Volume -ErrorAction Stop } catch {}
-   if ($v -and $v.FileSystemType -eq 'NTFS') {
+   if ($probeSafety -and $v -and $v.FileSystemType -eq 'NTFS') {
     try { $s=$p | Get-PartitionSupportedSize -ErrorAction Stop; $limit=[long]($p.Size-$s.SizeMin) } catch {}
     try {
      $b=Get-BitLockerVolume -MountPoint $v.Path -ErrorAction Stop
@@ -35,9 +35,9 @@ public sealed class WindowsStorageDiscovery : IStorageDiscovery {
   if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("WindowsRequired");
   var executable=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","powershell.exe");
   var start=new ProcessStartInfo(executable) { UseShellExecute=false, CreateNoWindow=true, RedirectStandardOutput=true, RedirectStandardError=true, StandardOutputEncoding=Encoding.UTF8 };
-  foreach(var arg in new[]{"-NoLogo","-NoProfile","-NonInteractive","-EncodedCommand",Convert.ToBase64String(Encoding.Unicode.GetBytes(Script))}) start.ArgumentList.Add(arg);
+  foreach(var arg in new[]{"-NoLogo","-NoProfile","-NonInteractive","-EncodedCommand",Convert.ToBase64String(Encoding.Unicode.GetBytes("$probeSafety="+(includeSafetyDetails?"$true":"$false")+";\n"+Script))}) start.ArgumentList.Add(arg);
   using var process=Process.Start(start) ?? throw new SafetyException("DiscoveryFailed");
-  using var timeout=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); timeout.CancelAfter(TimeSpan.FromSeconds(30));
+  using var timeout=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); timeout.CancelAfter(TimeSpan.FromSeconds(includeSafetyDetails?180:30));
   var output=process.StandardOutput.ReadToEndAsync(timeout.Token); var error=process.StandardError.ReadToEndAsync(timeout.Token);
   try { await process.WaitForExitAsync(timeout.Token); } catch { if(!process.HasExited) process.Kill(true); throw; }
   var json=await output; await error; // Never surface raw PowerShell output, which may contain personal paths.

@@ -104,8 +104,8 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public ICommand ExportCommand { get; }
  public ICommand SaveSettingsCommand { get; }
  public MainViewModel(IStorageDiscovery? storageDiscovery=null,Func<HostSnapshot>? hostInspector=null,OperationStore? operationStore=null) {
-  storage=storageDiscovery??new WindowsStorageDiscovery();
   inspectHost=hostInspector??HostInspector.Inspect;
+  storage=storageDiscovery??new WindowsStorageDiscovery(inspectHost().SupportedWindows);
   store=operationStore??new OperationStore(Path.Combine(App.DataRoot,"Operations"));
   Catalog=CatalogService.LoadBundled(Path.Combine(AppContext.BaseDirectory,"catalog.json"));
   foreach(var d in Catalog.Select(p=>p.Distribution).Distinct()) Distributions.Add(d);

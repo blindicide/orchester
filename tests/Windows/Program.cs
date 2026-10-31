@@ -32,7 +32,7 @@ public static class Program {
   }
   var host=HostInspector.Inspect();
   if(!host.Is64Bit || string.IsNullOrWhiteSpace(host.WindowsVersion) || host.WindowsVersion.Contains("Server",StringComparison.OrdinalIgnoreCase)&&host.SupportedWindows)throw new Exception("Windows host inspection failed");
-  var live=await new WindowsStorageDiscovery().DiscoverAsync(default);
+  var live=await new WindowsStorageDiscovery(includeSafetyDetails:false).DiscoverAsync(default);
   if(live.IsEmpty || live.Any(d=>d.Capacity<=0 || d.Partitions.Any(p=>p.Offset<0 || p.Length<=0)))throw new Exception("Read-only Windows storage discovery failed");
   Console.WriteLine($"PASS live read-only host and storage discovery: {live.Length} disks (no mutation)");
   var root=Path.Combine(Path.GetTempPath(),"OrchesterUi-"+Guid.NewGuid());Directory.CreateDirectory(root);
