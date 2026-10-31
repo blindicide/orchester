@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "releases": [
+    {
+      "id": "ubuntu-desktop-24.04.3",
+      "distribution": "Ubuntu Desktop",
+      "version": "24.04.3 LTS",
+      "architecture": "x86-64",
+      "downloadUrl": "https://releases.ubuntu.com/24.04.3/ubuntu-24.04.3-desktop-amd64.iso",
+      "checksumUrl": "https://releases.ubuntu.com/24.04.3/SHA256SUMS",
+      "installer": "Subiquity",
+      "kernelPath": "/casper/vmlinuz",
+      "initrdPath": "/casper/initrd",
+      "minimumStorageBytes": 34359738368,
+      "secureBoot": true,
+      "adapterVersion": "0.1.0",
+      "validated": false,
+      "modes": [
+        "Guided"
+      ]
+    },
+    {
+      "id": "ubuntu-server-24.04.3",
+      "distribution": "Ubuntu Server",
+      "version": "24.04.3 LTS",
+      "architecture": "x86-64",
+      "downloadUrl": "https://releases.ubuntu.com/24.04.3/ubuntu-24.04.3-live-server-amd64.iso",
+      "checksumUrl": "https://releases.ubuntu.com/24.04.3/SHA256SUMS",
+      "installer": "Subiquity",
+      "kernelPath": "/casper/vmlinuz",
+      "initrdPath": "/casper/initrd",
+      "minimumStorageBytes": 26843545600,
+      "secureBoot": true,
+      "adapterVersion": "0.1.0",
+      "validated": false,
+      "modes": [
+        "Guided"
+      ]
+    },
+    {
+      "id": "debian-13.0.0",
+      "distribution": "Debian",
+      "version": "13.0.0",
+      "architecture": "x86-64",
+      "downloadUrl": "https://cdimage.debian.org/mirror/cdimage/archive/13.0.0/amd64/iso-dvd/debian-13.0.0-amd64-DVD-1.iso",
+      "checksumUrl": "https://cdimage.debian.org/mirror/cdimage/archive/13.0.0/amd64/iso-dvd/SHA256SUMS",
+      "installer": "Debian Installer",
+      "kernelPath": "/install.amd/vmlinuz",
+      "initrdPath": "/install.amd/initrd.gz",
+      "minimumStorageBytes": 26843545600,
+      "secureBoot": true,
+      "adapterVersion": "0.1.0",
+      "validated": false,
+      "modes": [
+        "Guided"
+      ]
+    },
+    {
+      "id": "mint-cinnamon-22.2",
+      "distribution": "Linux Mint Cinnamon",
+      "version": "22.2",
+      "architecture": "x86-64",
+      "downloadUrl": "https://mirrors.edge.kernel.org/linuxmint/stable/22.2/linuxmint-22.2-cinnamon-64bit.iso",
+      "checksumUrl": "https://mirrors.edge.kernel.org/linuxmint/stable/22.2/sha256sum.txt",
+      "installer": "Ubiquity",
+      "kernelPath": "/casper/vmlinuz",
+      "initrdPath": "/casper/initrd.lz",
+      "minimumStorageBytes": 34359738368,
+      "secureBoot": false,
+      "adapterVersion": "0.1.0",
+      "validated": false,
+      "modes": [
+        "Guided"
+      ]
+    },
+    {
+      "id": "mint-mate-22.2",
+      "distribution": "Linux Mint Mate",
+      "version": "22.2",
+      "architecture": "x86-64",
+      "downloadUrl": "https://mirrors.edge.kernel.org/linuxmint/stable/22.2/linuxmint-22.2-mate-64bit.iso",
+      "checksumUrl": "https://mirrors.edge.kernel.org/linuxmint/stable/22.2/sha256sum.txt",
+      "installer": "Ubiquity",
+      "kernelPath": "/casper/vmlinuz",
+      "initrdPath": "/casper/initrd.lz",
+      "minimumStorageBytes": 34359738368,
+      "secureBoot": false,
+      "adapterVersion": "0.1.0",
+      "validated": false,
+      "modes": [
+        "Guided"
+      ]
+    },
+    {
+      "id": "mint-xfce-22.2",
+      "distribution": "Linux Mint Xfce",
+      "version": "22.2",
+      "architecture": "x86-64",
+      "downloadUrl": "https://mirrors.edge.kernel.org/linuxmint/stable/22.2/linuxmint-22.2-xfce-64bit.iso",
+      "checksumUrl": "https://mirrors.edge.kernel.org/linuxmint/stable/22.2/sha256sum.txt",
+      "installer": "Ubiquity",
+      "kernelPath": "/casper/vmlinuz",
+      "initrdPath": "/casper/initrd.lz",
+      "minimumStorageBytes": 34359738368,
+      "secureBoot": false,
+      "adapterVersion": "0.1.0",
+      "validated": false,
+      "modes": [
+        "Guided"
+      ]
+    }
+  ]
+}

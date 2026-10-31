@@ -1,0 +1,15 @@
+# Architecture and trust boundaries
+
+`Orchester.App` owns the unelevated WPF shell and view model. `Orchester.Localization` owns two complete resource dictionaries. Runtime language changes update controls without restarting. `Orchester.Core` contains immutable snapshots, plans, manifests, phases and adapter contracts.
+
+`Orchester.Storage` runs a fixed read-only Windows PowerShell script using the Windows Storage cmdlets, which wrap supported CIM storage APIs. Paths and strings from the UI are never inserted into the script. No diskpart, raw filesystem resizing, or writable disk handle is used. Access failures produce unknown encryption/shrink observations, which prevent planning. Its 30-second timeout kills an incomplete discovery process. The UI does not elevate itself.
+
+`Orchester.Images` verifies images using streaming SHA-256 and bounded ISO9660 reads. A partial download is specific to the expected digest and is always rehashed in full. Download results are atomically promoted only after hash validation; a mismatch discards the partial file. A server ignoring Range restarts at zero. Cancellation retains a resumable partial file. Publisher authenticity is a separate property from byte integrity; users must authenticate a reference digest independently. Bundled profiles contain no invented hashes. Automatic redirects are disabled to avoid security downgrades; use the bundled direct HTTPS origin.
+
+`Orchester.Adapters` exposes Ubuntu, Debian and Mint implementations behind a common contract. This preview implements inspection and planning validation. Installation methods reject execution until real implementations and evidence exist. Catalog data cannot name executable code or shell commands.
+
+`Orchester.Security` computes the SHA-256 fingerprint of the entire approved plan and independently rechecks disk identities, all partition metadata, protected types, shrink limits, encryption and geometry. Mutation requests are rejected regardless of UI settings. The typed helper protocol is a contract for a future ACL-restricted named-pipe helper; it is not an authorization token or running IPC endpoint. Future implementation must authenticate the Windows user/session and bind a single-use authorization to the fingerprint inside the helper.
+
+`Orchester.Engine` persists each journal entry with `Flush(true)` before replacing the manifest using a flushed temporary file. Journal/manifest divergence fails closed on load. Cancellation is only legal before storage execution; arbitrary partition rollback is never promised. Dry runs cannot transition into execution states. `COMPLETED` has no generic transition: a future evidence-specific completion method must validate actual installed-system and boot evidence.
+
+`Orchester.Recovery` uses a separate allowlist projection for shared diagnostics. Stable disk identities become hashed aliases; local paths and credential material are excluded. Full manifests remain private local files. Firmware repair and cleanup require independent ownership and dependency verification before future implementation can enable them.

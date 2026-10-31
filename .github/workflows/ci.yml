@@ -1,0 +1,30 @@
+name: Build and safety checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet run --project tests/Unit/Orchester.Tests.csproj -c Release
+      - run: python3 tests/check_resources.py
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet build Orchester.slnx -c Release
+      - run: dotnet run --project tests/Unit/Orchester.Tests.csproj -c Release --no-build
+      - run: dotnet publish src/Orchester.App/Orchester.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/Orchester
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Orchester-win-x64-preview
+          path: artifacts/Orchester/
