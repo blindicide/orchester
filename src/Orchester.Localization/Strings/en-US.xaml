@@ -148,4 +148,10 @@
 <sys:String x:Key="UNKNOWN_EXTERNAL_STATE">Unknown external state</sys:String>
 <sys:String x:Key="Navigation">Navigation</sys:String>
 <sys:String x:Key="DestinationExists">An existing file at the download destination differs from this image. Choose another download directory or preserve and move that file.</sys:String>
+<sys:String x:Key="EfiPartition">EFI System</sys:String>
+<sys:String x:Key="RecoveryPartition">Windows Recovery</sys:String>
+<sys:String x:Key="ReservedPartition">Microsoft Reserved</sys:String>
+<sys:String x:Key="WindowsPartition">Windows</sys:String>
+<sys:String x:Key="LinuxPartition">Linux type (inferred)</sys:String>
+<sys:String x:Key="OtherPartition">Data / unidentified</sys:String>
 </ResourceDictionary>

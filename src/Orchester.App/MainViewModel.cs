@@ -203,7 +203,14 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   await new RecoveryService(store).ExportRedactedAsync(dialog.FileName,host??throw new SafetyException("UnsupportedHost"),Disks.Select(d=>d.Value),ct);SetStatus("Exported");
  }
  private string DiskLabel(DiskSnapshot d)=>string.Format(l["DiskSummary"],d.Number,d.Name,d.Capacity/1073741824d,d.PartitionStyle,d.Health=="Healthy"?l["Healthy"]:l["Unknown"]);
- private string PartitionLabel(PartitionSnapshot p)=>string.Format(l["PartitionSummary"],p.Number,p.FileSystem,p.Length/1073741824d,p.ShrinkBytes is long limit?$"{limit/1073741824d:N1} GiB":l["Unknown"],l[p.Encryption==EncryptionState.Unknown?"UnknownEncryption":p.Encryption.ToString()]);
+ private string PartitionPurpose(PartitionSnapshot p)=>l[p.Type.ToUpperInvariant() switch {
+  "{C12A7328-F81F-11D2-BA4B-00A0C93EC93B}"=>"EfiPartition",
+  "{DE94BBA4-06D1-4D40-A16A-BFD50179D6AC}"=>"RecoveryPartition",
+  "{E3C9E316-0B5C-4DB8-817D-F92DF00215AE}"=>"ReservedPartition",
+  "{0FC63DAF-8483-4772-8E79-3D69D8477DE4}"=>"LinuxPartition",
+  "{0657FD6D-A4AB-43C4-84E5-0933C84B4F4F}"=>"LinuxPartition",
+  _=>p.IsBoot?"WindowsPartition":"OtherPartition" }];
+ private string PartitionLabel(PartitionSnapshot p)=>string.Format(l["PartitionSummary"],p.Number,PartitionPurpose(p)+" / "+p.FileSystem,p.Length/1073741824d,p.ShrinkBytes is long limit?$"{limit/1073741824d:N1} GiB":l["Unknown"],l[p.Encryption==EncryptionState.Unknown?"UnknownEncryption":p.Encryption.ToString()]);
  private void RefreshInventory(){Inventory.Clear();foreach(var d in Disks){Inventory.Add(DiskLabel(d.Value));foreach(var p in d.Value.Partitions)Inventory.Add(PartitionLabel(p));}}
  private void RefreshText(){
   relabeling=true;
@@ -220,7 +227,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   long end=0;
   foreach(var p in disk.Partitions.OrderBy(p=>p.Offset)) {
    Add(CurrentMap,l["Unallocated"],p.Offset-end);Add(ProposedMap,l["Unallocated"],p.Offset-end);
-   string label=$"#{p.Number} {p.FileSystem}";Add(CurrentMap,label,p.Length);
+   string label=$"#{p.Number} {PartitionPurpose(p)} {p.FileSystem}";Add(CurrentMap,label,p.Length);
    if(plan is not null&&p.Id==plan.SourcePartition){Add(ProposedMap,label,p.Length-plan.RequestedBytes-plan.StagingBytes);Add(ProposedMap,l["LinuxReserved"],plan.RequestedBytes,true);Add(ProposedMap,l["TemporaryStaging"],plan.StagingBytes,true);}else Add(ProposedMap,label,p.Length);
    end=p.Offset+p.Length;
   }

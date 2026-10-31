@@ -35,6 +35,7 @@ try {
  Refuses(()=>Planner.Create(disk with { Partitions=[partition with { Encryption=EncryptionState.Unknown }] },partition.Id,40*GiB,profile,image),"UnsafeSource");
  Refuses(()=>Planner.Create(disk with { Partitions=[partition with { Encryption=EncryptionState.Protected }] },partition.Id,40*GiB,profile,image),"UnsafeSource");
  Refuses(()=>Planner.Create(disk with { Partitions=[partition with { ShrinkBytes=null }] },partition.Id,40*GiB,profile,image),"UnsafeSource");
+ Refuses(()=>Planner.Create(disk with { Partitions=[partition with { Type="DE94BBA4-06D1-4D40-A16A-BFD50179D6AC" }] },partition.Id,40*GiB,profile,image),"UnsafeSource");
  Refuses(()=>Planner.Create(disk with { BusType="RAID" },partition.Id,40*GiB,profile,image),"UnsupportedDisk");
  Refuses(()=>PlanGuard.ValidateDisk(disk with { Partitions=[partition,partition with {Number=4,Id=Guid.NewGuid()}] }),"InvalidGeometry");
  var malicious=plan with {Changes=[new("FormatEsp",Guid.NewGuid(),0,GiB,true)]};
@@ -73,6 +74,10 @@ try {
  Check((await File.ReadAllBytesAsync(destination2)).SequenceEqual(bytes),"valid partial content resumes and rehashes entire image");
  await RefusesAsync(()=>new DownloadEngine(http).DownloadAsync(new("https://example.org/image.iso"),destination,new string('0',64),profile.Id,TrustLevel.UserAuthenticatedDigest,null,0,default),"DestinationExists");
  Check((await File.ReadAllBytesAsync(destination)).SequenceEqual(bytes),"existing destination preserved");
+ string completedDestination=Path.Combine(root,"complete.iso");await File.WriteAllBytesAsync(completedDestination+"."+hash.ToLowerInvariant()+".partial",bytes);
+ using var completeHttp=new HttpClient(new CompleteHttp());
+ await new DownloadEngine(completeHttp).DownloadAsync(new("https://example.org/image.iso"),completedDestination,hash,profile.Id,TrustLevel.UserAuthenticatedDigest,null,0,default);
+ Check((await File.ReadAllBytesAsync(completedDestination)).SequenceEqual(bytes),"completed partial survives server 416 and is fully verified");
  using var rsa=RSA.Create(2048);var catalog=Encoding.UTF8.GetBytes("{}");
  Refuses(()=>CatalogService.VerifyUpdate(catalog,new byte[256],rsa),"CatalogSignatureInvalid");
  Console.WriteLine($"{passed} checks passed.");
@@ -84,4 +89,8 @@ sealed class FakeHttp(byte[] data,bool range=false) : HttpMessageHandler {
   if(range)response.Content.Headers.ContentRange=new ContentRangeHeaderValue(start,data.Length-1,data.Length);
   return Task.FromResult(response);
  }
+}
+
+sealed class CompleteHttp : HttpMessageHandler {
+ protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken ct)=>Task.FromResult(new HttpResponseMessage(HttpStatusCode.RequestedRangeNotSatisfiable){RequestMessage=request,Content=new ByteArrayContent([])});
 }

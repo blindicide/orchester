@@ -148,4 +148,10 @@
 <sys:String x:Key="UNKNOWN_EXTERNAL_STATE">Неизвестное внешнее состояние</sys:String>
 <sys:String x:Key="Navigation">Навигация</sys:String>
 <sys:String x:Key="DestinationExists">В каталоге загрузки уже есть другой файл с таким именем. Выберите другой каталог или сохраните и переместите существующий файл.</sys:String>
+<sys:String x:Key="EfiPartition">Системный EFI</sys:String>
+<sys:String x:Key="RecoveryPartition">Восстановление Windows</sys:String>
+<sys:String x:Key="ReservedPartition">Зарезервировано Microsoft</sys:String>
+<sys:String x:Key="WindowsPartition">Windows</sys:String>
+<sys:String x:Key="LinuxPartition">Тип Linux (предположение)</sys:String>
+<sys:String x:Key="OtherPartition">Данные / не определено</sys:String>
 </ResourceDictionary>

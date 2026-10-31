@@ -6,7 +6,10 @@ public enum EncryptionState { Unknown, Unencrypted, Protected, Suspended, Locked
 public enum TrustLevel { Unverified, UserAuthenticatedDigest, PublisherAuthenticated }
 public sealed record HostSnapshot(string WindowsVersion, bool SupportedWindows, bool Uefi, bool? SecureBoot, bool Is64Bit);
 public sealed record PartitionSnapshot(int Number, Guid Id, string Type, long Offset, long Length, string FileSystem, string MountPoint, string Health, EncryptionState Encryption, long? ShrinkBytes, bool IsSystem, bool IsBoot) {
- public bool Protected => IsSystem || Type.Equals("{C12A7328-F81F-11D2-BA4B-00A0C93EC93B}", StringComparison.OrdinalIgnoreCase) || Type.Equals("{DE94BBA4-06D1-4D40-A16A-BFD50179D6AC}", StringComparison.OrdinalIgnoreCase) || Type.Equals("{E3C9E316-0B5C-4DB8-817D-F92DF00215AE}", StringComparison.OrdinalIgnoreCase);
+ public bool Protected => IsSystem || Guid.TryParse(Type,out var type) && (
+  type==new Guid("C12A7328-F81F-11D2-BA4B-00A0C93EC93B") ||
+  type==new Guid("DE94BBA4-06D1-4D40-A16A-BFD50179D6AC") ||
+  type==new Guid("E3C9E316-0B5C-4DB8-817D-F92DF00215AE"));
 }
 public sealed record DiskSnapshot(int Number, string StableId, string Name, long Capacity, int LogicalSector, int PhysicalSector, string PartitionStyle, string BusType, string Health, bool Offline, bool ReadOnly, ImmutableArray<PartitionSnapshot> Partitions);
 public sealed record ReleaseProfile(string Id, string Distribution, string Version, string Architecture, Uri DownloadUrl, Uri ChecksumUrl, string Installer, string KernelPath, string InitrdPath, long MinimumStorageBytes, bool SecureBoot, string AdapterVersion, bool Validated, ImmutableArray<InstallationMode> Modes);

@@ -11,7 +11,7 @@ using Orchester.App;
 using Orchester.Localization;
 public static class Program {
  [STAThread] public static void Main() {
-  var app=new SmokeApp();app.InitializeComponent();app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
+  var app=new App(false);app.InitializeComponent();app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
   app.Dispatcher.BeginInvoke(new Action(async()=> {
    try { await CheckAsync(app); } catch(Exception e) { Console.Error.WriteLine(e); Environment.ExitCode=1; } finally { app.Shutdown(); }
   }));
@@ -65,4 +65,3 @@ sealed class FixtureStorage(DiskSnapshot disk) : IStorageDiscovery {
  public Task<ImmutableArray<DiskSnapshot>> DiscoverAsync(CancellationToken ct)=>Task.FromResult(ImmutableArray.Create(disk));
 }
 
-sealed class SmokeApp : App { protected override void OnStartup(StartupEventArgs e) { } }

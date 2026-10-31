@@ -15,6 +15,7 @@ public sealed class OperationStore {
   await gate.WaitAsync(ct);
   try {
    var folder=Folder(plan.OperationId); Directory.CreateDirectory(folder);
+   using var lease=Lease(plan.OperationId);
    if (File.Exists(Path.Combine(folder,"manifest.json"))) throw new SafetyException("OperationExists");
    // Persist intent before any future action; v0.1 performs only reversible file writes.
    await AppendAsync(folder,new(1,DateTimeOffset.UtcNow,plan.OperationId,OperationPhase.CREATED,"Coordinator","DryRunCreated",true,null,[]),ct);
@@ -36,7 +37,7 @@ public sealed class OperationStore {
  }
  public async Task TransitionAsync(Guid id, OperationPhase next, string actionCode, CancellationToken ct) {
   await gate.WaitAsync(ct);
-  try { await TransitionInternalAsync(await LoadAsync(id,ct),next,actionCode,ct); } finally { gate.Release(); }
+  try { using var lease=Lease(id); await TransitionInternalAsync(await LoadAsync(id,ct),next,actionCode,ct); } finally { gate.Release(); }
  }
  private async Task TransitionInternalAsync(OperationManifest manifest, OperationPhase next,string actionCode,CancellationToken ct) {
   if (!CanTransition(manifest.Phase,next)) throw new SafetyException("InvalidTransition");
@@ -63,6 +64,7 @@ public sealed class OperationStore {
   return result.ToImmutable();
  }
  public IEnumerable<Guid> ListOperations() => Directory.EnumerateDirectories(root).Select(Path.GetFileName).Select(x=>Guid.TryParse(x,out var id)?id:Guid.Empty).Where(x=>x!=Guid.Empty);
+ private FileStream Lease(Guid id)=>new(Path.Combine(Folder(id),"operation.lock"),FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);
  private static async Task AppendAsync(string folder,JournalEntry entry,CancellationToken ct) {
   var bytes=Encoding.UTF8.GetBytes(JsonSerializer.Serialize(entry,Lines)+"\n");
   using var stream=new FileStream(Path.Combine(folder,"journal.jsonl"),FileMode.Append,FileAccess.Write,FileShare.Read,4096,FileOptions.WriteThrough);

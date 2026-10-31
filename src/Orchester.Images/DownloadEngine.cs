@@ -22,6 +22,13 @@ public sealed class DownloadEngine(HttpClient client) {
   if(offset>0) request.Headers.Range=new RangeHeaderValue(offset,null);
   using var response=await client.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,ct);
   if(response.RequestMessage?.RequestUri?.Scheme!=Uri.UriSchemeHttps) throw new SafetyException("HttpsRequired");
+  if(response.StatusCode==HttpStatusCode.RequestedRangeNotSatisfiable && offset>0) {
+   await output.DisposeAsync();
+   try {
+    var complete=await ImageVerifier.VerifyAsync(partial,digest,profileId,trust,ct);
+    File.Move(partial,full,false);return complete with {Path=full};
+   } catch(SafetyException e) when(e.Code=="ChecksumMismatch") {File.Delete(partial);throw;}
+  }
   response.EnsureSuccessStatusCode();
   if(response.StatusCode==HttpStatusCode.PartialContent) {
    if(response.Content.Headers.ContentRange?.From!=offset || response.Content.Headers.ContentRange?.Unit!="bytes") throw new SafetyException("InvalidResume");
