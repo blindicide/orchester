@@ -3,14 +3,15 @@ using System.IO;
 using System.Security.Cryptography;
 using Orchester.Core;
 using Orchester.Engine;
+using Orchester.Storage;
+using Orchester.Boot;
 using System.Windows;
 using System.Windows.Controls;
 using Orchester.App;
 using Orchester.Localization;
 public static class Program {
  [STAThread] public static void Main() {
-  var app=new App();app.InitializeComponent();app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
-  app.StartupUri=null;
+  var app=new SmokeApp();app.InitializeComponent();app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
   app.Dispatcher.BeginInvoke(new Action(async()=> {
    try { await CheckAsync(app); } catch(Exception e) { Console.Error.WriteLine(e); Environment.ExitCode=1; } finally { app.Shutdown(); }
   }));
@@ -29,6 +30,11 @@ public static class Program {
    if(LanguageManager.Current["Install"]=="Install" || window.FindName("LanguagePicker") is not ComboBox)throw new Exception("Resource or view load failed");
    window.Close();Console.WriteLine("PASS WPF shell, sections, stages, themes and live language switch: "+culture);
   }
+  var host=HostInspector.Inspect();
+  if(!host.Is64Bit || !host.SupportedWindows)throw new Exception("Windows host inspection failed");
+  var live=await new WindowsStorageDiscovery().DiscoverAsync(default);
+  if(live.IsEmpty || live.Any(d=>d.Capacity<=0 || d.Partitions.Any(p=>p.Offset<0 || p.Length<=0)))throw new Exception("Read-only Windows storage discovery failed");
+  Console.WriteLine($"PASS live read-only host and storage discovery: {live.Length} disks (no mutation)");
   var root=Path.Combine(Path.GetTempPath(),"OrchesterUi-"+Guid.NewGuid());Directory.CreateDirectory(root);
   try {
    const long gib=1024L*1024*1024;
@@ -58,3 +64,5 @@ public static class Program {
 sealed class FixtureStorage(DiskSnapshot disk) : IStorageDiscovery {
  public Task<ImmutableArray<DiskSnapshot>> DiscoverAsync(CancellationToken ct)=>Task.FromResult(ImmutableArray.Create(disk));
 }
+
+sealed class SmokeApp : App { protected override void OnStartup(StartupEventArgs e) { } }

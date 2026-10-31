@@ -8,6 +8,7 @@ public partial class App : Application {
  protected override void OnStartup(StartupEventArgs e) {
   base.OnStartup(e);
   var settings=UserSettings.Load(); LanguageManager.Current.SetLanguage(settings.Language ?? (CultureInfo.InstalledUICulture.Name=="ru-RU"?"ru-RU":"en-US")); ApplyTheme(settings.Dark);
+  new MainWindow().Show();
  }
  public static void ApplyTheme(bool dark) {
   Current.Resources["Surface"]=new SolidColorBrush((Color)ColorConverter.ConvertFromString(dark?"#172334":"#F3F5F8"));
