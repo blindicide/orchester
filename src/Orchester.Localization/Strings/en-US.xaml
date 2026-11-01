@@ -83,7 +83,7 @@
 <sys:String x:Key="DiskChanged">Disk identity changed. Refresh storage.</sys:String>
 <sys:String x:Key="LayoutChanged">Disk metadata changed. Create a new plan.</sys:String>
 <sys:String x:Key="SourceMissing">Select a source partition.</sys:String>
-<sys:String x:Key="UnsafeSource">Source is protected, encrypted, unhealthy, or its shrink limit is unavailable. An elevated read-only inspection may be needed.</sys:String>
+<sys:String x:Key="UnsafeSource">Source is protected, encrypted, dirty, unhealthy, or lacks verified shrink/health data. Use elevated read-only inspection.</sys:String>
 <sys:String x:Key="ShrinkLimit">The requested allocation plus staging exceeds the supported shrink limit.</sys:String>
 <sys:String x:Key="ImageUnverified">Verify an authenticated image first.</sys:String>
 <sys:String x:Key="UnsupportedDisk">This disk configuration is available for inspection only.</sys:String>
@@ -196,4 +196,6 @@
 <sys:String x:Key="UpdateSignatureInvalid">Update metadata signature is invalid.</sys:String>
 <sys:String x:Key="UpdateRejected">Update metadata is invalid, incompatible, or would downgrade the application.</sys:String>
 <sys:String x:Key="ExecutableSignatureInvalid">The executable signature or publisher key does not match the authenticated release.</sys:String>
+<sys:String x:Key="InspectStorage">Inspect disk eligibility (administrator consent)</sys:String>
+<sys:String x:Key="StorageInspected">Disk safety information inspected through the elevated helper. Saving the plan will revalidate it through a fresh helper request.</sys:String>
 </ResourceDictionary>

@@ -35,6 +35,8 @@ public static class Program {
   }
   var host=HostInspector.Inspect();
   if(!host.Is64Bit || string.IsNullOrWhiteSpace(host.WindowsVersion) || host.WindowsVersion.Contains("Server",StringComparison.OrdinalIgnoreCase)&&host.SupportedWindows)throw new Exception("Windows host inspection failed");
+  if(WindowsVolumeHealth.QueryDirty("C") is null)throw new Exception("Read-only NTFS dirty-state query unavailable on diagnostic runner");
+  Console.WriteLine("PASS native read-only NTFS dirty-state query");
   var live=await new WindowsStorageDiscovery(includeSafetyDetails:false).DiscoverAsync(default);
   if(live.IsEmpty || live.Any(d=>d.Capacity<=0 || d.Partitions.Any(p=>p.Offset<0 || p.Length<=0)))throw new Exception("Read-only Windows storage discovery failed");
   Console.WriteLine($"PASS live read-only host and storage discovery: {live.Length} disks (no mutation)");
@@ -68,7 +70,7 @@ public static class Program {
   var root=Path.Combine(Path.GetTempPath(),"OrchesterUi-"+Guid.NewGuid());Directory.CreateDirectory(root);
   try {
    const long gib=1024L*1024*1024;
-   var source=new PartitionSnapshot(3,Guid.NewGuid(),"{EBD0A0A2-B9E5-4433-87C0-68B6B72699C7}",gib,200*gib,"NTFS","C","Healthy",EncryptionState.Unencrypted,100*gib,false,true);
+   var source=new PartitionSnapshot(3,Guid.NewGuid(),"{EBD0A0A2-B9E5-4433-87C0-68B6B72699C7}",gib,200*gib,"NTFS","C","Healthy",EncryptionState.Unencrypted,100*gib,false,true,false);
    var disk=new DiskSnapshot(0,"fixture-disk","Fixture",256*gib,512,4096,"GPT","NVMe","Healthy",false,false,[source]);
    var store=new OperationStore(Path.Combine(root,"operations"));
    var model=new MainViewModel(new FixtureStorage(disk),()=>new("Test Windows",true,true,true,true),store);

@@ -5,7 +5,7 @@ public enum InstallationMode { Guided, Automated, Advanced }
 public enum EncryptionState { Unknown, Unencrypted, Protected, Suspended, Locked }
 public enum TrustLevel { Unverified, UserAuthenticatedDigest, PublisherAuthenticated }
 public sealed record HostSnapshot(string WindowsVersion, bool SupportedWindows, bool Uefi, bool? SecureBoot, bool Is64Bit);
-public sealed record PartitionSnapshot(int Number, Guid Id, string Type, long Offset, long Length, string FileSystem, string MountPoint, string Health, EncryptionState Encryption, long? ShrinkBytes, bool IsSystem, bool IsBoot) {
+public sealed record PartitionSnapshot(int Number, Guid Id, string Type, long Offset, long Length, string FileSystem, string MountPoint, string Health, EncryptionState Encryption, long? ShrinkBytes, bool IsSystem, bool IsBoot, bool? Dirty = null) {
  public bool Protected => IsSystem || Guid.TryParse(Type,out var type) && (
   type==new Guid("C12A7328-F81F-11D2-BA4B-00A0C93EC93B") ||
   type==new Guid("DE94BBA4-06D1-4D40-A16A-BFD50179D6AC") ||

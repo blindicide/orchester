@@ -40,7 +40,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private VerifiedImage? image;
  private HostSnapshot? host;
  private int stage,section;
- private bool busy,approved,digestTrusted,relabeling;
+ private bool busy,approved,digestTrusted,relabeling,elevatedStorage;
  private ImmutableArray<RecoveryRecord> operationRecords=[];
  private string status="Ready",statusDetail="",distribution="",isoPath="",digest="",size="40";
  private ReleaseProfile? release;
@@ -93,6 +93,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public Choice<PartitionSnapshot>? SelectedPartition { get=>Partitions.FirstOrDefault(p=>p.Value==partition);set {if(relabeling)return;partition=value?.Value;InvalidatePlan();Changed();} }
  public string SizeGiB { get=>size;set {size=value;InvalidatePlan();Changed();} }
  public bool Approved { get=>approved;set {approved=value;Changed();CommandManager.InvalidateRequerySuggested();} }
+ public ICommand ElevatedStorageCommand { get; }
  public ICommand PrepareBundleCommand { get; }
  public ICommand VerifyBundleCommand { get; }
  public ICommand FirmwareCommand { get; }
@@ -115,6 +116,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   Catalog=CatalogService.LoadBundled(Path.Combine(AppContext.BaseDirectory,"catalog.json"));
   foreach(var d in Catalog.Select(p=>p.Distribution).Distinct()) Distributions.Add(d);
   Distribution=Distributions[0];
+  ElevatedStorageCommand=new AsyncCommand(()=>Run(InspectElevatedStorageAsync),()=>Idle);
   PrepareBundleCommand=new AsyncCommand(()=>Run(PrepareBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
   VerifyBundleCommand=new AsyncCommand(()=>Run(VerifyBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
   FirmwareCommand=new AsyncCommand(()=>Run(InspectFirmwareAsync),()=>Idle);
@@ -144,7 +146,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private void SetStatus(string code,string detail="") {status=code;statusDetail=detail;Changed(nameof(Status));}
  private void InvalidatePlan() {plan=null;approvedFingerprint=null;Approved=false;savedOperation=null;Changes.Clear();ProposedMap.Clear();}
  private async Task RefreshAsync(CancellationToken ct) {
-  InvalidatePlan();host=inspectHost();Changed(nameof(HostText));
+  elevatedStorage=false;InvalidatePlan();host=inspectHost();Changed(nameof(HostText));
   var disks=await storage.DiscoverAsync(ct);Disks.Clear();
   foreach(var d in disks)Disks.Add(new(d,DiskLabel(d)));
   SelectedDisk=Disks.FirstOrDefault();RefreshInventory();await InspectAsync(ct);
@@ -180,8 +182,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  }
  private async Task SavePlanAsync(CancellationToken ct) {
   if(plan is null || !Approved || approvedFingerprint is null)throw new SafetyException("PlanRequired");
-  var current=(await storage.DiscoverAsync(ct)).SingleOrDefault(d=>d.Number==plan.OriginalDisk.Number)??throw new SafetyException("DiskChanged");
-  PlanGuard.Validate(plan,current,approvedFingerprint,false);
+  if(elevatedStorage) {
+   var checkedPlan=await ElevatedDiagnostics.InspectAsync(DiagnosticCommand.ValidatePlan,ct,plan,approvedFingerprint);
+   if(!checkedPlan.Success)throw new SafetyException(checkedPlan.ErrorCode??"UnauthorizedRequest");
+  } else {
+   var current=(await storage.DiscoverAsync(ct)).SingleOrDefault(d=>d.Number==plan.OriginalDisk.Number)??throw new SafetyException("DiskChanged");
+   PlanGuard.Validate(plan,current,approvedFingerprint,false);
+  }
   await ImageVerifier.VerifyAsync(plan.Image.Path,plan.Image.Sha256,plan.ProfileId,plan.Image.Trust,ct);
   await store.SaveDryRunAsync(plan,ct);savedOperation=plan.OperationId;
   await store.TransitionAsync(plan.OperationId,OperationPhase.IMAGE_READY,"ImageVerified",ct);
@@ -204,6 +211,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private void RenderOperations() {
   Operations.Clear();foreach(var record in operationRecords)Operations.Add(string.Format(l["SavedOperation"],record.OperationId,l[record.Phase.ToString()],l[record.DryRun?"DryRun":"Unverified"]));
   if(Operations.Count==0)Operations.Add(l["NoOperations"]);
+ }
+ private async Task InspectElevatedStorageAsync(CancellationToken ct) {
+  var result=await ElevatedDiagnostics.InspectAsync(DiagnosticCommand.InspectStorage,ct);
+  if(!result.Success)throw new SafetyException(result.ErrorCode??"DiscoveryFailed");
+  var disks=result.Data?.Deserialize<ImmutableArray<DiskSnapshot>>()??throw new SafetyException("DiscoveryFailed");
+  InvalidatePlan();Disks.Clear();foreach(var d in disks)Disks.Add(new(d,DiskLabel(d)));
+  SelectedDisk=Disks.FirstOrDefault();elevatedStorage=true;RefreshInventory();SetStatus("StorageInspected");
  }
  private async Task PrepareBundleAsync(CancellationToken ct) {
   var current=plan??throw new SafetyException("PlanRequired");

@@ -25,7 +25,7 @@ public sealed class RecoveryService(OperationStore store) {
     history.Add(new { Operation=id,Phases=entries.Select(e=>new {e.Sequence,e.Timestamp,e.Phase,e.Verified}) });
    } catch(Exception e) when(e is IOException or SafetyException or JsonException) { history.Add(new {Operation=id,State="RECOVERY_REQUIRED"}); }
   }
-  var payload=new { History=history,SchemaVersion=1,ExportedAt=DateTimeOffset.UtcNow,Host=host,Disks=disks.Select(d=>new {Disk=Alias(d.StableId),d.Capacity,d.LogicalSector,d.PhysicalSector,d.PartitionStyle,d.Health,Partitions=d.Partitions.Select(p=>new {p.Number,p.Offset,p.Length,p.Type,p.FileSystem,p.Health,p.Encryption})}),Operations=await InspectAsync(ct) };
+  var payload=new { History=history,SchemaVersion=1,ExportedAt=DateTimeOffset.UtcNow,Host=host,Disks=disks.Select(d=>new {Disk=Alias(d.StableId),d.Capacity,d.LogicalSector,d.PhysicalSector,d.PartitionStyle,d.Health,Partitions=d.Partitions.Select(p=>new {p.Number,p.Offset,p.Length,p.Type,p.FileSystem,p.Health,p.Encryption,p.Dirty})}),Operations=await InspectAsync(ct) };
   await File.WriteAllTextAsync(destination,JsonSerializer.Serialize(payload,OperationStore.Json),ct);
  }
 }

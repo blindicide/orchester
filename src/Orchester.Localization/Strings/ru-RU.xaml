@@ -83,7 +83,7 @@
 <sys:String x:Key="DiskChanged">Идентификатор диска изменился. Обновите сведения.</sys:String>
 <sys:String x:Key="LayoutChanged">Метаданные диска изменились. Создайте новый план.</sys:String>
 <sys:String x:Key="SourceMissing">Выберите исходный раздел.</sys:String>
-<sys:String x:Key="UnsafeSource">Исходный раздел защищён, зашифрован, неисправен или его предел сжатия неизвестен. Может потребоваться чтение сведений с повышенными правами.</sys:String>
+<sys:String x:Key="UnsafeSource">Раздел защищён, зашифрован, загрязнён, неисправен или не имеет проверенных сведений о сжатии и состоянии. Используйте повышенную проверку чтением.</sys:String>
 <sys:String x:Key="ShrinkLimit">Запрошенный объём вместе с подготовительным разделом превышает допустимое сжатие.</sys:String>
 <sys:String x:Key="ImageUnverified">Сначала проверьте подлинный образ.</sys:String>
 <sys:String x:Key="UnsupportedDisk">Эта конфигурация диска доступна только для анализа.</sys:String>
@@ -196,4 +196,6 @@
 <sys:String x:Key="UpdateSignatureInvalid">Подпись метаданных обновления недействительна.</sys:String>
 <sys:String x:Key="UpdateRejected">Метаданные обновления некорректны, несовместимы или предлагают понижение версии.</sys:String>
 <sys:String x:Key="ExecutableSignatureInvalid">Подпись программы или ключ издателя не соответствует подлинному выпуску.</sys:String>
+<sys:String x:Key="InspectStorage">Проверить пригодность дисков (согласие администратора)</sys:String>
+<sys:String x:Key="StorageInspected">Сведения о безопасности дисков прочитаны повышенным помощником. При сохранении план будет повторно проверен новым запросом помощника.</sys:String>
 </ResourceDictionary>

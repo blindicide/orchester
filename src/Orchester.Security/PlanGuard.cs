@@ -11,7 +11,7 @@ public static class PlanGuard {
   if (JsonSerializer.Serialize(plan.OriginalDisk) != JsonSerializer.Serialize(current)) throw new SafetyException("LayoutChanged");
   ValidateDisk(current);
   var source = current.Partitions.SingleOrDefault(x => x.Id == plan.SourcePartition) ?? throw new SafetyException("SourceMissing");
-  if (!Guid.TryParse(source.Type,out var sourceType) || sourceType!=new Guid("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7") || source.Protected || source.FileSystem != "NTFS" || source.Health != "Healthy" || source.Encryption != EncryptionState.Unencrypted || source.ShrinkBytes is null) throw new SafetyException("UnsafeSource");
+  if (!Guid.TryParse(source.Type,out var sourceType) || sourceType!=new Guid("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7") || source.Dirty!=false || source.Protected || source.FileSystem != "NTFS" || source.Health != "Healthy" || source.Encryption != EncryptionState.Unencrypted || source.ShrinkBytes is null) throw new SafetyException("UnsafeSource");
   if (plan.RequestedBytes <= 0 || plan.StagingBytes <= 0 || checked(plan.RequestedBytes + plan.StagingBytes) > source.ShrinkBytes) throw new SafetyException("ShrinkLimit");
   long total=checked(plan.RequestedBytes+plan.StagingBytes);
   long start=checked(source.Offset+source.Length-total);

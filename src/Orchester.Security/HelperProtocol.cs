@@ -7,7 +7,7 @@ using System.Text.Json;
 using Orchester.Core;
 namespace Orchester.Security;
 
-public enum DiagnosticCommand { InspectHost, InspectFirmware, ValidatePlan }
+public enum DiagnosticCommand { InspectHost, InspectFirmware, ValidatePlan, InspectStorage }
 public sealed record DiagnosticRequest(int Version, Guid OperationId, string Nonce, DiagnosticCommand Command,
     InstallationPlan? Plan, string? Fingerprint);
 public sealed record DiagnosticResponse(int Version, Guid OperationId, bool Success, string? ErrorCode, JsonElement? Data);

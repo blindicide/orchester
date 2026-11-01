@@ -43,7 +43,9 @@ public sealed class WindowsStorageDiscovery(bool includeSafetyDetails=true) : IS
   try { await process.WaitForExitAsync(timeout.Token); } catch { if(!process.HasExited) process.Kill(true); throw; }
   var json=await output; await error; // Never surface raw PowerShell output, which may contain personal paths.
   if(process.ExitCode!=0) throw new SafetyException("DiscoveryFailed");
-  return ParseInventory(json);
+  var snapshots=ParseInventory(json);
+  if(!includeSafetyDetails)return snapshots;
+  return snapshots.Select(d=>d with {Partitions=d.Partitions.Select(p=>p.FileSystem=="NTFS"?p with {Dirty=WindowsVolumeHealth.QueryDirty(p.MountPoint)}:p).ToImmutableArray()}).ToImmutableArray();
  }
  public static ImmutableArray<DiskSnapshot> ParseInventory(string json) {
   var options=new JsonSerializerOptions { PropertyNameCaseInsensitive=true, Converters={new System.Text.Json.Serialization.JsonStringEnumConverter()} };

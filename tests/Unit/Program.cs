@@ -23,7 +23,7 @@ try {
  Check(image.Length==bytes.Length,"streamed verification");
  await RefusesAsync(()=>ImageVerifier.VerifyAsync(path,new string('0',64),"ubuntu-test",TrustLevel.UserAuthenticatedDigest,default),"ChecksumMismatch");
  await RefusesAsync(()=>ImageVerifier.VerifyAsync(path,hash,"ubuntu-test",TrustLevel.Unverified,default),"TrustedDigestRequired");
- var partition=new PartitionSnapshot(3,Guid.NewGuid(),"{EBD0A0A2-B9E5-4433-87C0-68B6B72699C7}",GiB,200*GiB,"NTFS","C","Healthy",EncryptionState.Unencrypted,100*GiB,false,true);
+ var partition=new PartitionSnapshot(3,Guid.NewGuid(),"{EBD0A0A2-B9E5-4433-87C0-68B6B72699C7}",GiB,200*GiB,"NTFS","C","Healthy",EncryptionState.Unencrypted,100*GiB,false,true,false);
  var disk=new DiskSnapshot(0,"stable-test-device","Test disk",256*GiB,512,4096,"GPT","NVMe","Healthy",false,false,[partition]);
  var providerJson=System.Text.Json.JsonSerializer.Serialize(new[]{disk}).Replace(partition.Id.ToString(),"{"+partition.Id+"}");
  Check(WindowsStorageDiscovery.ParseInventory(providerJson)[0].Partitions[0].Id==partition.Id,"Windows brace-form GUID normalized before JSON conversion");

@@ -12,7 +12,7 @@ public static class StorageStatePolicy {
             var current = disk.Partitions.SingleOrDefault(p => p.Id == original.Id) ?? throw new SafetyException("LayoutChanged");
             long expectedLength = original.Id == plan.SourcePartition ? original.Length - plan.RequestedBytes - plan.StagingBytes : original.Length;
             if (current.Offset != original.Offset || current.Length != expectedLength || current.Type != original.Type || current.FileSystem != original.FileSystem ||
-                current.IsSystem != original.IsSystem || current.IsBoot != original.IsBoot || current.Health != original.Health || current.Encryption != original.Encryption)
+                current.IsSystem != original.IsSystem || current.IsBoot != original.IsBoot || current.Health != original.Health || current.Encryption != original.Encryption || current.Dirty != original.Dirty)
                 throw new SafetyException("LayoutChanged");
         }
         if (owned is not null) ValidateOwnership(plan, owned, disk);

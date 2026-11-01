@@ -44,6 +44,7 @@ if ($q.Kind -eq 'Shrink') {
         var disk = await InspectAsync(plan.OriginalDisk.Number, ct);
         PlanGuard.Validate(plan, disk, PlanGuard.Fingerprint(plan), false);
         var source = disk.Partitions.Single(p => p.Id == plan.SourcePartition);
+        if(!OperatingSystem.IsWindows()||WindowsVolumeHealth.QueryDirty(source.MountPoint)!=false)throw new SafetyException("UnsafeSource");
         await RunAsync(new("Shrink", disk.Number, disk.StableId, source.Id, source.Offset, source.Length,
             source.Length - plan.RequestedBytes - plan.StagingBytes), ct);
         var after = await InspectAsync(disk.Number, ct);

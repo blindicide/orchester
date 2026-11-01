@@ -28,6 +28,8 @@ try {
             case DiagnosticCommand.InspectFirmware:
                 WindowsFirmwareVariables.EnableReadPrivilege();
                 data = new UefiBootService(new WindowsFirmwareVariables()).Inspect(); break;
+            case DiagnosticCommand.InspectStorage:
+                data=await new WindowsStorageDiscovery(HostInspector.Inspect().SupportedWindows).DiscoverAsync(timeout.Token);break;
             case DiagnosticCommand.ValidatePlan:
                 var plan = request.Plan ?? throw new SafetyException("UnauthorizedRequest");
                 var host = HostInspector.Inspect();

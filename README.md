@@ -49,7 +49,7 @@ The portable core checks also run on Linux with .NET 10. WPF requires Windows. T
 5. Review the current/proposed maps and the explicit change list. Authorize saving the exact dry-run record.
 6. Save the operation. The journal remains at `PLAN_APPROVED`, indicating preparation has not executed. The final stage explains the installer handoff gate.
 7. Prepare and verify an inspection bundle from stage 6. This copies files only; it does not create bootable installation media.
-8. Use Recovery to inspect records, read firmware entries through UAC, and export redacted diagnostics.
+8. Use Recovery to inspect records, read firmware entries or inspect disk eligibility through UAC, and export redacted diagnostics.
 
 Data is stored beneath `%LOCALAPPDATA%\Orchester`. Manifests contain local device and image paths and should remain local. Shared diagnostic exports exclude those paths, mount letters, raw stable identities and image credentials. No passwords are collected. Logs use stable action codes rendered through complete language packs.
 

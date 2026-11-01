@@ -21,9 +21,11 @@ public static class AdvancedChecks {
             byte[] iso=IsoFixture.Create();string imagePath=Path.Combine(root,"source.iso");await File.WriteAllBytesAsync(imagePath,iso);
             string hash=Convert.ToHexString(SHA256.HashData(iso));
             var image=await ImageVerifier.VerifyAsync(imagePath,hash,"ubuntu-test",TrustLevel.UserAuthenticatedDigest,default);
-            var source=new PartitionSnapshot(3,Guid.NewGuid(),"{EBD0A0A2-B9E5-4433-87C0-68B6B72699C7}",gib,200*gib,"NTFS","C","Healthy",EncryptionState.Unencrypted,100*gib,false,true);
+            var source=new PartitionSnapshot(3,Guid.NewGuid(),"{EBD0A0A2-B9E5-4433-87C0-68B6B72699C7}",gib,200*gib,"NTFS","C","Healthy",EncryptionState.Unencrypted,100*gib,false,true,false);
             var disk=new DiskSnapshot(0,"fixture-disk","Test",256*gib,512,4096,"GPT","NVMe","Healthy",false,false,[source]);
             var profile=new ReleaseProfile("ubuntu-test","Ubuntu Test","1","x86-64",new("https://example.org/iso"),new("https://example.org/sum"),"Subiquity","/casper/vmlinuz","/casper/initrd",25*gib,true,"0.1.0",false,[InstallationMode.Guided]);
+            Refuses(()=>Planner.Create(disk with {Partitions=[source with {Dirty=true}]},source.Id,40*gib,profile,image),"UnsafeSource");
+            Refuses(()=>Planner.Create(disk with {Partitions=[source with {Dirty=null}]},source.Id,40*gib,profile,image),"UnsafeSource");
             var plan=Planner.Create(disk,source.Id,40*gib,profile,image);
             Refuses(()=>WorkspaceSafety.ResolveChild(root,"../outside"),"UnsafePath");
             Refuses(()=>WorkspaceSafety.ResolveChild(root,"other:stream"),"UnsafePath");

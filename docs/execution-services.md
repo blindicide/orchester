@@ -27,3 +27,8 @@ Debian output preseeds locale, keyboard, user hash, time zone, mirror and packag
 ## Before native hardware testing
 
 Use disposable VM/VHD cases first. The current release has no production execution backend or writable helper endpoint. Review the gate checklist in `implementation-status.md`; do not bypass it by editing catalog validation flags. Keep snapshots and independent copies of disk GUIDs/geometry, protected EFI file hashes and firmware variables. The GUI is suitable for read-only hardware inventory and bundle verification now; dual-boot execution qualification follows the remaining integration steps.
+
+
+## Read-only eligibility on normal-user desktops
+
+The storage views include **Inspect disk eligibility (administrator consent)**. The helper reads full storage/encryption/shrink observations and queries NTFS state with `FSCTL_IS_VOLUME_DIRTY` through a read-only volume handle. Dirty, checking, flagged and unknown states cannot be planned. The UI remains unelevated. If the inventory came from the helper, saving its approved dry run launches a fresh helper request to independently revalidate the plan; it does not substitute the unelevated process's possibly incomplete observations. No protection suspension or recovery-key collection occurs.

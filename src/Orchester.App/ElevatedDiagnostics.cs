@@ -6,7 +6,7 @@ using Orchester.Security;
 namespace Orchester.App;
 
 public static class ElevatedDiagnostics {
-    public static async Task<DiagnosticResponse> InspectAsync(DiagnosticCommand command, CancellationToken ct) {
+    public static async Task<DiagnosticResponse> InspectAsync(DiagnosticCommand command, CancellationToken ct,InstallationPlan? plan=null,string? fingerprint=null) {
         string helper = Path.Combine(AppContext.BaseDirectory, "Orchester.Helper.exe");
         if (!File.Exists(helper)) throw new SafetyException("HelperMissing");
         WorkspaceSafety.RejectReparsePoints(helper);
@@ -20,7 +20,7 @@ public static class ElevatedDiagnostics {
         using (process) {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct); timeout.CancelAfter(TimeSpan.FromSeconds(170));
             if(process is null)throw new SafetyException("HelperMissing");
-            return await HelperProtocol.ExchangeAsync(pipe, new(1, Guid.NewGuid(), nonce, command, null, null), timeout.Token, process.Id);
+            return await HelperProtocol.ExchangeAsync(pipe, new(1, plan?.OperationId??Guid.NewGuid(), nonce, command, plan, fingerprint), timeout.Token, process.Id);
         }
     }
 }
