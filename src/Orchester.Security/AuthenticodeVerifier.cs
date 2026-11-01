@@ -20,7 +20,7 @@ public static class AuthenticodeVerifier {
         Guid action=new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
         IntPtr name=Marshal.StringToCoTaskMemUni(Path.GetFullPath(path));
         IntPtr info=Marshal.AllocHGlobal(Marshal.SizeOf<TrustFile>());
-        var data=new TrustData {Size=(uint)Marshal.SizeOf<TrustData>(),Ui=2,Revocation=1,Union=1,File=info,StateAction=1,Flags=0x80};
+        var data=new TrustData {Size=(uint)Marshal.SizeOf<TrustData>(),Ui=2,Revocation=1,Union=1,File=info,StateAction=1,Flags=0x80|0x1000};
         try {
             Marshal.StructureToPtr(new TrustFile {Size=(uint)Marshal.SizeOf<TrustFile>(),Path=name},info,false);
             if(WinVerifyTrust(new IntPtr(-1),ref action,ref data)!=0)throw new SafetyException("ExecutableSignatureInvalid");
