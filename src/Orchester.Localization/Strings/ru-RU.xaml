@@ -193,4 +193,7 @@
 <sys:String x:Key="InspectFirmware">Проверить прошивку (согласие администратора)</sys:String>
 <sys:String x:Key="FirmwareHelp">Помощник только читает записи прошивки. BootOrder, BootNext и файлы EFI не изменяются.</sys:String>
 <sys:String x:Key="FirmwareInspected">Загрузочные записи прошивки проверены.</sys:String>
+<sys:String x:Key="UpdateSignatureInvalid">Подпись метаданных обновления недействительна.</sys:String>
+<sys:String x:Key="UpdateRejected">Метаданные обновления некорректны, несовместимы или предлагают понижение версии.</sys:String>
+<sys:String x:Key="ExecutableSignatureInvalid">Подпись программы или ключ издателя не соответствует подлинному выпуску.</sys:String>
 </ResourceDictionary>

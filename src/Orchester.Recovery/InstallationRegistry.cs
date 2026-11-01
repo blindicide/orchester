@@ -5,9 +5,10 @@ using Orchester.Security;
 namespace Orchester.Recovery;
 
 public sealed class InstallationRegistry(string root, IInstalledSystemProbe probe) {
-    public async Task<KnownInstallation> ConfirmAsync(InstallationPlan plan, Guid expectedRoot, CancellationToken ct) {
+    public async Task<KnownInstallation> ConfirmAsync(InstallationPlan plan, ReleaseProfile profile, Guid expectedRoot, CancellationToken ct) {
         var e = await probe.InspectAsync(plan.OperationId, ct);
-        if (plan.DryRun || e.OperationId != plan.OperationId || e.RootPartitionId != expectedRoot || expectedRoot == Guid.Empty ||
+        string expectedDistribution=profile.Id.StartsWith("mint-",StringComparison.Ordinal)?"linuxmint":profile.Id.Split('-')[0];
+        if (profile.Id!=plan.ProfileId || e.DistributionId!=expectedDistribution || e.Version!=profile.Version || plan.DryRun || e.OperationId != plan.OperationId || e.RootPartitionId != expectedRoot || expectedRoot == Guid.Empty ||
             e.DiskId != plan.OriginalDisk.StableId || !e.RootReadVerified || !e.BootEntryVerified || !e.InstallerReceiptVerified ||
             !e.LinuxBootVerified || !e.WindowsBootVerified || e.FileSystem is not ("ext4" or "btrfs" or "xfs") ||
             string.IsNullOrWhiteSpace(e.DistributionId) || string.IsNullOrWhiteSpace(e.Version) ||

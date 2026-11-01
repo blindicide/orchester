@@ -18,6 +18,7 @@ public sealed class StagingWorkspace {
         if (Directory.Exists(target) || File.Exists(target)) throw new SafetyException("DestinationExists");
         await ImageVerifier.VerifyAsync(plan.Image.Path, plan.Image.Sha256, plan.ProfileId, plan.Image.Trust, ct);
         await using var iso = await Iso9660Reader.OpenAsync(plan.Image.Path, ct);
+        await iso.VerifySourceAsync(plan.Image.Sha256,ct);
         var kernel = await iso.FindAsync(profile.KernelPath, ct);
         var initrd = await iso.FindAsync(profile.InitrdPath, ct);
         var efi = await iso.FindAsync("/EFI/BOOT/BOOTX64.EFI", ct);
@@ -52,7 +53,7 @@ public sealed class StagingWorkspace {
         File.Delete(Path.Combine(target, "preparing"));
         return receipt;
     }
-    public async Task VerifyAsync(string target, InstallationPlan plan, CancellationToken ct) {
+    public async Task VerifyAsync(string target, InstallationPlan plan, ReleaseProfile profile, CancellationToken ct) {
         WorkspaceSafety.RejectReparsePoints(target);
         if (File.Exists(Path.Combine(target, "preparing"))) throw new SafetyException("StagingIncomplete");
         var receipt = JsonSerializer.Deserialize<StagingReceipt>(await File.ReadAllTextAsync(Path.Combine(target, "staging.json"), ct))
@@ -61,7 +62,18 @@ public sealed class StagingWorkspace {
             receipt.PlanFingerprint != PlanGuard.Fingerprint(plan) || receipt.ImageSha256 != plan.Image.Sha256 ||
             receipt.Files.IsDefaultOrEmpty || receipt.Files.Select(f => f.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase).Count() != receipt.Files.Length)
             throw new SafetyException("StagingIncomplete");
+        if(profile.Id!=plan.ProfileId||receipt.ProfileId!=profile.Id)throw new SafetyException("StagingIncomplete");
+        await using var source=await Iso9660Reader.OpenAsync(plan.Image.Path,ct);
+        await source.VerifySourceAsync(plan.Image.Sha256,ct);
+        var sourceHashes=new Dictionary<string,string> {
+            ["orchester/vmlinuz"]=await source.HashAsync(await source.FindAsync(profile.KernelPath,ct),ct),
+            ["orchester/initrd"]=await source.HashAsync(await source.FindAsync(profile.InitrdPath,ct),ct),
+            ["orchester/inspected-bootx64.efi"]=await source.HashAsync(await source.FindAsync("/EFI/BOOT/BOOTX64.EFI",ct),ct),
+            ["orchester/source.iso"]=plan.Image.Sha256.ToLowerInvariant()
+        };
+        if(receipt.Files.Length!=sourceHashes.Count)throw new SafetyException("StagingIncomplete");
         foreach (var expected in receipt.Files) {
+            if(!sourceHashes.TryGetValue(expected.RelativePath,out var authenticHash)||!authenticHash.Equals(expected.Sha256,StringComparison.OrdinalIgnoreCase))throw new SafetyException("StagingChanged");
             string path = WorkspaceSafety.ResolveChild(target, expected.RelativePath);
             using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             if (file.Length != expected.Length || !Convert.ToHexString(await SHA256.HashDataAsync(file, ct)).Equals(expected.Sha256, StringComparison.OrdinalIgnoreCase))

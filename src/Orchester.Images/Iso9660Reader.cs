@@ -74,6 +74,19 @@ public sealed class Iso9660Reader : IAsyncDisposable {
         await output.FlushAsync(ct); output.Flush(true);
         return new(relativePath, file.Length, Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant());
     }
+    public async Task VerifySourceAsync(string expectedSha256, CancellationToken ct) {
+        stream.Position=0;
+        if(!Convert.ToHexString(await SHA256.HashDataAsync(stream,ct)).Equals(expectedSha256,StringComparison.OrdinalIgnoreCase))
+            throw new SafetyException("ChecksumMismatch");
+    }
+    public async Task<string> HashAsync(IsoFile file,CancellationToken ct) {
+        if(file.Offset<0||file.Length<=0||file.Offset>stream.Length-file.Length)throw new SafetyException("UnsupportedImage");
+        stream.Position=file.Offset;
+        using var hash=IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer=new byte[1024*1024];long remaining=file.Length;
+        while(remaining>0){int read=await stream.ReadAsync(buffer.AsMemory(0,(int)Math.Min(buffer.Length,remaining)),ct);if(read==0)throw new EndOfStreamException();hash.AppendData(buffer,0,read);remaining-=read;}
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+    }
     private static Entry Parse(byte[] bytes, int pos) {
         if (pos + 34 > bytes.Length || bytes[pos] < 34 || bytes[pos + 26] != 0 || bytes[pos + 27] != 0 || (bytes[pos + 25] & 0x80) != 0)
             throw new SafetyException("UnsupportedImage"); // Interleaved and multi-extent files require another reader.

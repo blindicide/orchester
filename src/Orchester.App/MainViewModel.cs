@@ -216,7 +216,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  }
  private async Task VerifyBundleAsync(CancellationToken ct) {
   var current=plan??throw new SafetyException("PlanRequired");
-  await new StagingWorkspace().VerifyAsync(Path.Combine(Settings.StagingDirectory,current.OperationId.ToString("D")),current,ct);
+  await new StagingWorkspace().VerifyAsync(Path.Combine(Settings.StagingDirectory,current.OperationId.ToString("D")),current,Release??throw new SafetyException("AdapterMismatch"),ct);
   SetStatus("BundleVerified");
  }
  private async Task InspectFirmwareAsync(CancellationToken ct) {

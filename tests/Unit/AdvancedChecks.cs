@@ -44,12 +44,15 @@ public static class AdvancedChecks {
             var receipt=await staging.PrepareAsync(plan,profile,recipe,stagingRoot,false,default);
             string staged=Path.Combine(stagingRoot,plan.OperationId.ToString("D"));
             Check(receipt.Files.Length==4,"ISO and boot files extracted with hashes");
-            await staging.VerifyAsync(staged,plan,default);Check(true,"staging receipt verifies all files");
+            await staging.VerifyAsync(staged,plan,profile,default);Check(true,"staging receipt verifies all files");
             await File.AppendAllTextAsync(Path.Combine(staged,"orchester","vmlinuz"),"changed");
-            await RefusesAsync(()=>staging.VerifyAsync(staged,plan,default),"StagingChanged");
+            await RefusesAsync(()=>staging.VerifyAsync(staged,plan,profile,default),"StagingChanged");
             await RefusesAsync(()=>staging.PrepareAsync(plan,profile,recipe,stagingRoot,false,default),"DestinationExists");
             await RefusesAsync(()=>staging.PrepareAsync(plan with {Image=plan.Image with {Length=5*gib}},profile,recipe,Path.Combine(root,"fat32"),true,default),"Fat32FileLimit");
             await RefusesAsync(()=>staging.PrepareAsync(plan with {ProfileId=debian.Id,Image=plan.Image with {ProfileId=debian.Id}},debian,InstallerRecipes.Create(debian),Path.Combine(root,"debian"),false,default),"HdMediaRequired");
+            var modifiedReceipt=receipt with {Files=receipt.Files.Select(f=>f.RelativePath=="orchester/vmlinuz"?f with {Sha256=new string('0',64)}:f).ToImmutableArray()};
+            await File.WriteAllTextAsync(Path.Combine(staged,"staging.json"),JsonSerializer.Serialize(modifiedReceipt));
+            await RefusesAsync(()=>staging.VerifyAsync(staged,plan,profile,default),"StagingChanged");
             var target=new AutomationTarget("NVME-SERIAL-1234",5,Guid.NewGuid(),6,Guid.NewGuid(),true,true);
             var options=new UnattendedOptions("en_US.UTF-8","us","Etc/UTC","orchester","tester","$6$abcdefgh$"+new string('A',86),target,["curl"]);
             var config=UnattendedGenerator.Generate(profile,plan,options);
@@ -100,11 +103,18 @@ public static class AdvancedChecks {
             Check(await failing.InspectRecoveryAsync(failed.OperationId,default)==OperationPhase.RECOVERY_REQUIRED,"partial storage failure requires recovery");
             string recordPath=Path.Combine(executionRoot,plan.OperationId.ToString("D"),"execution.jsonl");await File.AppendAllTextAsync(recordPath,"{partial");
             Check(await coordinator.InspectRecoveryAsync(plan.OperationId,default)==OperationPhase.RECOVERY_REQUIRED,"truncated critical journal refuses resume");
+            using(var key=RSA.Create(2048)) {
+                var update=new ReleaseUpdateManifest(1,"0.3.0","win-x64",new("https://example.org/update.exe"),new string('A',64),new string('B',64));
+                byte[] payload=JsonSerializer.SerializeToUtf8Bytes(update);byte[] signature=key.SignData(payload,HashAlgorithmName.SHA256,RSASignaturePadding.Pss);
+                Check(SignedRelease.Verify(payload,signature,key,new Version(0,2,0)).Manifest.Version=="0.3.0","publisher-signed update metadata accepted");
+                Refuses(()=>SignedRelease.Verify(payload,signature,key,new Version(0,4,0)),"UpdateRejected");
+                payload[^2]^=1;Refuses(()=>SignedRelease.Verify(payload,signature,key,new Version(0,2,0)),"UpdateSignatureInvalid");
+            }
             Guid installedRoot=Guid.NewGuid();var evidence=new InstalledSystemEvidence(plan.OperationId,installedRoot,disk.StableId,"ubuntu","1","ext4",true,true,true,true,true);
             var registry=new InstallationRegistry(Path.Combine(root,"installed"),new FixtureProbe(evidence));
-            Check((await registry.ConfirmAsync(executable,installedRoot,default)).Verified,"completion requires independent system and dual-boot evidence");
+            Check((await registry.ConfirmAsync(executable,profile,installedRoot,default)).Verified,"completion requires independent system and dual-boot evidence");
             var pending=new InstallationRegistry(Path.Combine(root,"pending"),new FixtureProbe(evidence with {LinuxBootVerified=false}));
-            await RefusesAsync(()=>pending.ConfirmAsync(executable,installedRoot,default),"CompletionEvidenceInsufficient");
+            await RefusesAsync(()=>pending.ConfirmAsync(executable,profile,installedRoot,default),"CompletionEvidenceInsufficient");
         } finally {Directory.Delete(root,true);}
         return count;
     }

@@ -193,4 +193,7 @@
 <sys:String x:Key="InspectFirmware">Inspect firmware (administrator consent)</sys:String>
 <sys:String x:Key="FirmwareHelp">The helper reads firmware entries only. It does not change BootOrder, BootNext or EFI files.</sys:String>
 <sys:String x:Key="FirmwareInspected">Firmware boot entries inspected.</sys:String>
+<sys:String x:Key="UpdateSignatureInvalid">Update metadata signature is invalid.</sys:String>
+<sys:String x:Key="UpdateRejected">Update metadata is invalid, incompatible, or would downgrade the application.</sys:String>
+<sys:String x:Key="ExecutableSignatureInvalid">The executable signature or publisher key does not match the authenticated release.</sys:String>
 </ResourceDictionary>

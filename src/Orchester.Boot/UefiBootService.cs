@@ -54,6 +54,7 @@ public sealed class UefiBootService(IFirmwareVariables variables) {
     }
     private void ValidateOwned(BootEntryOwnership ownership) {
         var bytes = variables.Read(Name(ownership.Number)) ?? throw new SafetyException("BootOwnershipMismatch");
+        if (Convert.ToHexString(SHA256.HashData(bytes)) != ownership.ContentSha256) throw new SafetyException("BootOwnershipMismatch");
         var entry = UefiLoadOption.Parse(ownership.Number, bytes);
         if (entry.ContentSha256 != ownership.ContentSha256 || entry.PartitionId != ownership.PartitionId ||
             entry.EfiPath != ownership.EfiPath || entry.Description != "ORCHESTER " + ownership.OperationId.ToString("D") || entry.WindowsBootManager)
