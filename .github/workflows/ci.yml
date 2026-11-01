@@ -8,6 +8,10 @@ on:
         description: Build and package on Windows
         type: boolean
         default: false
+      package_installer:
+        description: Compile the Windows setup package
+        type: boolean
+        default: false
       windows_validation:
         description: Run existing Windows validation (operator requested)
         type: boolean
@@ -48,7 +52,12 @@ jobs:
         timeout-minutes: 3
       - run: dotnet publish src/Orchester.App/Orchester.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/Orchester
       - run: dotnet publish src/Orchester.Helper/Orchester.Helper.csproj -c Release -r win-x64 --self-contained true -o artifacts/Orchester
+      - if: inputs.package_installer
+        shell: pwsh
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging/Orchester.iss'
       - uses: actions/upload-artifact@v4
         with:
           name: Orchester-windows-built
-          path: artifacts/Orchester/
+          path: |
+            artifacts/Orchester/
+            artifacts/Installer/

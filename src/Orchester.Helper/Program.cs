@@ -9,6 +9,16 @@ using Orchester.Core;
 using Orchester.Security;
 using Orchester.Storage;
 
+if(args.Length==1&&args[0]=="--can-uninstall") {
+ try {
+  var operations=new Orchester.Engine.PrivilegedOperationStore();
+  foreach(var row in await operations.ListAsync(CancellationToken.None)) {
+   var state=await operations.LoadAsync(row.OperationId,CancellationToken.None);
+   if(state.Boot is not null||state.Mounts.Length>0||state.Partitions.Any(p=>!state.RetainedPartitions.Contains(p.PartitionId)))return 3;
+  }
+  return 0;
+ }catch{return 3;}
+}
 if (args.Length != 4 || args[0] != "--pipe" || args[2] != "--nonce" ||
     !Regex.IsMatch(args[1], @"\AOrchester-[A-F0-9]{32}\z") || !Regex.IsMatch(args[3], @"\A[A-F0-9]{64}\z")) return 2;
 using var timeout = new CancellationTokenSource(TimeSpan.FromHours(3));

@@ -6,7 +6,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $signer=Get-Command signtool.exe -ErrorAction Stop
-$files=Get-ChildItem -LiteralPath $ArtifactDirectory -Filter 'Orchester*.exe' -File
+$files=Get-ChildItem -LiteralPath $ArtifactDirectory -File | Where-Object { $_.Name -like 'Orchester*.exe' -or $_.Name -like 'Orchester*.dll' -or $_.Name -like 'ORCHESTER-*-setup.exe' }
 if(!$files){throw 'No ORCHESTER executables found'}
 foreach($file in $files){
  & $signer.Source sign /sha1 $CertificateThumbprint /fd SHA256 /tr $TimestampUrl /td SHA256 $file.FullName

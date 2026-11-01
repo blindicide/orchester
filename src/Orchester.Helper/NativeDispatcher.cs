@@ -30,7 +30,7 @@ internal static class NativeDispatcher {
             if(plan is null||plan.OriginalDisk is null||plan.Image is null||plan.Changes.IsDefault||plan.OriginalDisk.Partitions.IsDefault)throw new SafetyException("UnauthorizedRequest");
             request=request with {HdMediaKernel=plan.AuxiliaryImages.GetValueOrDefault("hd-kernel"),HdMediaInitrd=plan.AuxiliaryImages.GetValueOrDefault("hd-initrd")};
             if(plan.OperationId!=message.OperationId||request.Fingerprint!=PlanGuard.Fingerprint(plan)||!request.StorageConsent||!request.BackupConfirmed)throw new SafetyException("AuthorizationRequired");
-            var profile=CatalogService.LoadBundled(Path.Combine(AppContext.BaseDirectory,"catalog.json")).SingleOrDefault(p=>p.Id==plan.ProfileId)??throw new SafetyException("AdapterMismatch");
+            var profile=CatalogService.LoadBuiltin().SingleOrDefault(p=>p.Id==plan.ProfileId)??throw new SafetyException("AdapterMismatch");
             var host=HostInspector.Inspect();DistributionAdapter.For(profile).ValidateHost(host,profile);
             if(plan.DryRun||!NativeLayout.ForExecution(plan).Changes.SequenceEqual(plan.Changes))throw new SafetyException("PlanChanged");
             using var permit=ReleaseGate.Authorize(plan.OperationId);
@@ -58,6 +58,7 @@ internal static class NativeDispatcher {
                 throw;
             }
         }
+        var currentHost=HostInspector.Inspect();if(!currentHost.SupportedWindows||!currentHost.Uefi||!currentHost.Is64Bit)throw new SafetyException("UnsupportedHost");
         var existing=await store.LoadAsync(message.OperationId,ct);
         using var diskControl=store.LockDisk(existing.Plan.OriginalDisk.StableId);
         using var control=store.Lock(message.OperationId);
@@ -66,7 +67,7 @@ internal static class NativeDispatcher {
             case DiagnosticCommand.RequestInstallerBoot:
                 if(existing.Phase!=OperationPhase.BOOT_CONFIGURED||existing.Boot is null)throw new SafetyException("InvalidTransition");
                 await new NativeOperationLifecycle(store).VerifyStagedAsync(existing,ct);
-                var bootProfile=CatalogService.LoadBundled(Path.Combine(AppContext.BaseDirectory,"catalog.json")).Single(p=>p.Id==existing.Plan.ProfileId);
+                var bootProfile=CatalogService.LoadBuiltin().Single(p=>p.Id==existing.Plan.ProfileId);
                 var bootBackend=new WindowsInstallationBackend(store,bootProfile,new(existing.Plan,PlanGuard.Fingerprint(existing.Plan),true,true));
                 try {await new ExecutionCoordinator(store.Root,bootBackend).RequestBootAsync(existing.Plan,ct);}
                 catch {await store.SaveAsync(existing with {Phase=OperationPhase.UNKNOWN_EXTERNAL_STATE},CancellationToken.None);throw;}

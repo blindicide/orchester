@@ -93,7 +93,7 @@ public sealed class NativeOperationLifecycle(PrivilegedOperationStore store) {
                 var os=await new Ext4Identification(raw,partition.Offset,partition.Length,disk.LogicalSector).IdentifyAsync(ct);
                 string vendor=family=="debian"?"debian":"ubuntu";
                 bool boot=firmware.Entries.Any(e=>!e.WindowsBootManager&&e.PartitionId is not null&&e.EfiPath.StartsWith("\\EFI\\"+vendor+"\\",StringComparison.OrdinalIgnoreCase));
-                var profile=Orchester.Images.CatalogService.LoadBundled(Path.Combine(AppContext.BaseDirectory,"catalog.json")).Single(p=>p.Id==state.Plan.ProfileId);
+                var profile=Orchester.Images.CatalogService.LoadBuiltin().Single(p=>p.Id==state.Plan.ProfileId);
                 var expected=profile.Version.Split(' ')[0].Split('.');var actual=os.Version.Split('.');int pieces=family=="debian"?1:Math.Min(2,expected.Length);
                 if(os.Id!=family||!boot||actual.Length<pieces||!expected.Take(pieces).SequenceEqual(actual.Take(pieces)))continue;
                 var completion=new NativeCompletion(state.Plan.OperationId,partition.Id,os.Id,os.Version,DateTimeOffset.UtcNow,true,true,null);

@@ -18,9 +18,7 @@ public sealed class DownloadEngine(HttpClient client) {
   var partial=full+"."+digest.ToLowerInvariant()+".partial";
   using var output=new FileStream(partial,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None,1024*1024,FileOptions.Asynchronous);
   var offset=output.Length;
-  using var request=new HttpRequestMessage(HttpMethod.Get,uri);
-  if(offset>0) request.Headers.Range=new RangeHeaderValue(offset,null);
-  using var response=await client.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,ct);
+  using var response=await SendAsync(uri,offset,ct);
   if(response.RequestMessage?.RequestUri?.Scheme!=Uri.UriSchemeHttps) throw new SafetyException("HttpsRequired");
   if(response.StatusCode==HttpStatusCode.RequestedRangeNotSatisfiable && offset>0) {
    await output.DisposeAsync();
@@ -53,4 +51,19 @@ public sealed class DownloadEngine(HttpClient client) {
   catch(SafetyException e) when(e.Code=="ChecksumMismatch") { File.Delete(partial); throw; }
   File.Move(partial,full,false); return image with { Path=full };
  }
+ private async Task<HttpResponseMessage> SendAsync(Uri uri,long offset,CancellationToken ct) {
+  for(int attempt=0;attempt<6;attempt++) {
+   if(uri.Scheme!="https"||!string.IsNullOrEmpty(uri.UserInfo))throw new SafetyException("HttpsRequired");
+   using var request=new HttpRequestMessage(HttpMethod.Get,uri);
+   if(offset>0)request.Headers.Range=new RangeHeaderValue(offset,null);
+   var response=await client.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,ct);
+   if((int)response.StatusCode is >=300 and <400) {
+    var location=response.Headers.Location;response.Dispose();if(location is null)throw new SafetyException("DownloadRedirectInvalid");
+    uri=location.IsAbsoluteUri?location:new Uri(uri,location);continue;
+   }
+   return response;
+  }
+  throw new SafetyException("DownloadRedirectInvalid");
+ }
+
 }

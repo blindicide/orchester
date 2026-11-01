@@ -12,7 +12,7 @@
 <sys:String x:Key="Stage5">5 · Проверка изменений</sys:String>
 <sys:String x:Key="Stage6">6 · Подготовка установки</sys:String>
 <sys:String x:Key="Stage7">7 · Перезагрузка и установка</sys:String>
-<sys:String x:Key="Intro">Подготовьте установку второй ОС с проверяемым планом. Эта версия выполняет пробный запуск; изменение дисков и запуск установщика доступны только после проверки выпусков.</sys:String>
+<sys:String x:Key="Intro">Изучите диски, проверьте образ установщика, просмотрите план разделов и разрешите подготовку установки. Согласие администратора запрашивается только для привилегированных действий.</sys:String>
 <sys:String x:Key="Back">Назад</sys:String>
 <sys:String x:Key="Next">Далее</sys:String>
 <sys:String x:Key="Cancel">Отменить операцию</sys:String>
@@ -235,4 +235,10 @@
 <sys:String x:Key="WindowsBootRestored">Сохранённая конфигурация BCD Windows восстановлена. Перед заменой текущей конфигурации создана её копия.</sys:String>
 <sys:String x:Key="AllocationRestored">Подходящий том Windows расширен в проверенную неразмеченную область.</sys:String>
 <sys:String x:Key="StorageBusy">Другая операция ещё использует ресурсы подготовки на этом диске. Сначала восстановите или очистите её.</sys:String>
+<sys:String x:Key="FetchChecksum">Получить эталонную контрольную сумму</sys:String>
+<sys:String x:Key="PublisherChecksumLoaded">Эталонная контрольная сумма получена по подлинному HTTPS издателя. Подпись OpenPGP не проверялась.</sys:String>
+<sys:String x:Key="MirrorChecksumLoaded">Контрольная сумма зеркала загружена. Перед подтверждением независимо проверьте подлинность метаданных издателя.</sys:String>
+<sys:String x:Key="ChecksumMetadataInvalid">Опубликованный список контрольных сумм отсутствует, неоднозначен или не содержит этот точный образ.</sys:String>
+<sys:String x:Key="DownloadRedirectInvalid">Сервер вернул некорректное или чрезмерное перенаправление загрузки.</sys:String>
+<sys:String x:Key="BootBackupIncompatible">Сохранённая конфигурация загрузки относится к другой сборке Windows. Используйте штатное восстановление Windows.</sys:String>
 </ResourceDictionary>

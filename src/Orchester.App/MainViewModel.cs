@@ -122,6 +122,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public ICommand PrepareBundleCommand { get; }
  public ICommand VerifyBundleCommand { get; }
  public ICommand FirmwareCommand { get; }
+ public ICommand FetchChecksumCommand {get;}
  public ICommand RefreshCommand { get; }
  public ICommand VerifyCommand { get; }
  public ICommand BrowseCommand { get; }
@@ -138,7 +139,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   inspectHost=hostInspector??HostInspector.Inspect;
   storage=storageDiscovery??new WindowsStorageDiscovery(inspectHost().SupportedWindows);
   store=operationStore??new OperationStore(Path.Combine(App.DataRoot,"Operations"));
-  Catalog=CatalogService.LoadBundled(Path.Combine(AppContext.BaseDirectory,"catalog.json"));
+  Catalog=CatalogService.LoadBuiltin();
   foreach(var d in Catalog.Select(p=>p.Distribution).Distinct()) Distributions.Add(d);
   Distribution=Distributions[0];
   RestoreWindowsCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.RestoreWindowsBoot,ct)),()=>Idle&&SelectedOperation is not null&&RecoveryConsent);
@@ -155,6 +156,10 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   PrepareBundleCommand=new AsyncCommand(()=>Run(PrepareBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
   VerifyBundleCommand=new AsyncCommand(()=>Run(VerifyBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
   FirmwareCommand=new AsyncCommand(()=>Run(InspectFirmwareAsync),()=>Idle);
+  FetchChecksumCommand=new AsyncCommand(()=>Run(async ct=> {
+   var reference=await PublisherChecksums.FetchAsync(Release??throw new SafetyException("AdapterMismatch"),ct);
+   Digest=reference.Sha256;DigestTrusted=reference.AuthenticatedPublisherOrigin;SetStatus(reference.AuthenticatedPublisherOrigin?"PublisherChecksumLoaded":"MirrorChecksumLoaded");
+  }),()=>Idle);
   RefreshCommand=new AsyncCommand(()=>Run(RefreshAsync),()=>Idle);
   VerifyCommand=new AsyncCommand(()=>Run(VerifyAsync),()=>Idle);
   BrowseCommand=new AsyncCommand(()=> {var dialog=new OpenFileDialog {Filter="ISO (*.iso)|*.iso",CheckFileExists=true};if(dialog.ShowDialog()==true)IsoPath=dialog.FileName;return Task.CompletedTask;},()=>Idle);

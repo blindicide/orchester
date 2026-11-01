@@ -10,6 +10,7 @@ namespace Orchester.Engine;
 [SupportedOSPlatform("windows")]
 public static class WindowsBootBackup {
     public static async Task SaveAsync(string folder,CancellationToken ct) {
+        await File.WriteAllTextAsync(Path.Combine(folder,"host-before.json"),JsonSerializer.Serialize(HostInspector.Inspect()),ct);
         WindowsFirmwareVariables.EnableReadPrivilege();var variables=new WindowsFirmwareVariables();
         var snapshot=new UefiBootService(variables).Inspect();
         await File.WriteAllTextAsync(Path.Combine(folder,"firmware-before.json"),JsonSerializer.Serialize(snapshot),ct);
@@ -23,6 +24,8 @@ public static class WindowsBootBackup {
         await File.WriteAllTextAsync(Path.Combine(folder,"windows-before.sha256"),Convert.ToHexString(await SHA256.HashDataAsync(file,ct)),ct);
     }
     public static async Task RestoreAsync(string folder,CancellationToken ct) {
+        var host=JsonSerializer.Deserialize<HostSnapshot>(await File.ReadAllTextAsync(Path.Combine(folder,"host-before.json"),ct))??throw new SafetyException("JournalIncomplete");
+        if(host.WindowsVersion!=HostInspector.Inspect().WindowsVersion)throw new SafetyException("BootBackupIncompatible");
         string backup=Path.Combine(folder,"windows-before.bcd");
         using(var file=new FileStream(backup,FileMode.Open,FileAccess.Read,FileShare.Read)) {
             string expected=await File.ReadAllTextAsync(Path.Combine(folder,"windows-before.sha256"),ct);

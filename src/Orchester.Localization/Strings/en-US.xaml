@@ -12,7 +12,7 @@
 <sys:String x:Key="Stage5">5 · Review changes</sys:String>
 <sys:String x:Key="Stage6">6 · Prepare installation</sys:String>
 <sys:String x:Key="Stage7">7 · Restart and install</sys:String>
-<sys:String x:Key="Intro">Prepare a dual-boot installation with a verifiable plan. This foundation release performs a dry run; storage changes and installer boot are gated by release validation.</sys:String>
+<sys:String x:Key="Intro">Inspect your storage, verify an installer image, review the partition plan, then authorize installation preparation. Administrator consent is requested only for privileged actions.</sys:String>
 <sys:String x:Key="Back">Back</sys:String>
 <sys:String x:Key="Next">Next</sys:String>
 <sys:String x:Key="Cancel">Cancel operation</sys:String>
@@ -235,4 +235,10 @@
 <sys:String x:Key="WindowsBootRestored">Saved Windows BCD configuration restored. The configuration replaced by this action was backed up first.</sys:String>
 <sys:String x:Key="AllocationRestored">The eligible Windows volume was extended into its verified unallocated space.</sys:String>
 <sys:String x:Key="StorageBusy">Another operation still owns active preparation resources on this disk. Recover or clean up that operation first.</sys:String>
+<sys:String x:Key="FetchChecksum">Get reference checksum</sys:String>
+<sys:String x:Key="PublisherChecksumLoaded">Reference checksum loaded over authenticated publisher HTTPS. An OpenPGP signature has not been checked.</sys:String>
+<sys:String x:Key="MirrorChecksumLoaded">Mirror checksum loaded. Authenticate publisher metadata independently before confirming trust.</sys:String>
+<sys:String x:Key="ChecksumMetadataInvalid">The published checksum list is missing, ambiguous, or does not identify this exact image.</sys:String>
+<sys:String x:Key="DownloadRedirectInvalid">The server returned an invalid or excessive download redirect.</sys:String>
+<sys:String x:Key="BootBackupIncompatible">The saved boot configuration belongs to a different Windows build. Use guided Windows recovery instead.</sys:String>
 </ResourceDictionary>

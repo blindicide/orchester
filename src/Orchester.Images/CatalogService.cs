@@ -5,6 +5,10 @@ using System.Text.Json.Serialization;
 using Orchester.Core;
 namespace Orchester.Images;
 public static class CatalogService {
+ public static ImmutableArray<ReleaseProfile> LoadBuiltin() {
+  using var source=typeof(CatalogService).Assembly.GetManifestResourceStream("Orchester.BuiltinCatalog")??throw new SafetyException("CatalogInvalid");
+  using var bytes=new MemoryStream();source.CopyTo(bytes);return Parse(bytes.ToArray());
+ }
  public static ImmutableArray<ReleaseProfile> LoadBundled(string path) => Parse(File.ReadAllBytes(path));
  // Updates require an out-of-band pinned publisher key. No downloaded keys or executable adapters.
  public static ImmutableArray<ReleaseProfile> VerifyUpdate(byte[] payload,byte[] signature,RSA pinnedPublisherKey) {
