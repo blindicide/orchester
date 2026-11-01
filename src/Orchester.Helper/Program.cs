@@ -49,7 +49,7 @@ try {
                 var disk = (await new WindowsStorageDiscovery().DiscoverAsync(timeout.Token)).SingleOrDefault(d => d.Number == plan.OriginalDisk.Number)
                     ?? throw new SafetyException("DiskChanged");
                 PlanGuard.Validate(plan, disk, request.Fingerprint!, false);
-                data = new { Valid=true, Fingerprint=PlanGuard.Fingerprint(plan), NativeWritesEnabled=false }; break;
+                data = new { Valid=true, Fingerprint=PlanGuard.Fingerprint(plan), NativeWritesRequireSeparateConsent=true }; break;
             case DiagnosticCommand.PrepareInstallation:
             case DiagnosticCommand.RequestInstallerBoot:
             case DiagnosticCommand.ListOperations:

@@ -1,22 +1,31 @@
 # Recovery
 
-In the foundation preview, operations affect downloaded files and local manifests only. Disk layout and firmware boot entries are never modified.
+Open **Recovery**, load operations and inspect the selected operation before cleanup. Native records live under `%ProgramData%\Orchester\Operations`; UI-only plans and downloaded settings live under `%LOCALAPPDATA%\Orchester`. Preserve these records after interruption.
 
-- Cancel hashing/download with the Cancel operation button. Partial downloads can be resumed with the same destination and authenticated digest. A changed digest uses a different partial file.
-- Cancel an approved dry run before execution to append a cancellation phase. Manifests are retained for diagnostics.
-- If an application or machine stops between a flushed journal entry and manifest replacement, Recovery reports an inconsistent operation. Preserve its operation directory; do not treat it as completed or automatically delete resources based on it.
-- Export redacted diagnostics from Recovery. Full manifests include local paths and stable identities; do not share them indiscriminately.
-- A `PLAN_APPROVED` record is not an installed OS. A reboot or a saved record cannot certify a Linux installation.
+## Before storage writes
 
-For future releases, a storage write interruption must enter `RECOVERY_REQUIRED` or `UNKNOWN_EXTERNAL_STATE`. Re-enumerate disk identities and partitions and independently verify ORCHESTER ownership before cleanup. A resource must never be considered owned because it is FAT32, Linux-formatted, adjacent to another partition, or named similarly. Windows and third-party boot repair requires a separately approved procedure.
+Downloads can be cancelled/resumed with the same expected digest. A saved plan does not change storage. Failed preflight may leave a protected source cache; cleanup removes it without touching partitions.
 
-BitLocker: maintain external access to recovery credentials before future boot/storage operations. This preview does not collect, log, suspend, restore or decrypt encryption keys or protection. Unknown, locked, protected and suspended states block plans.
+## Interrupted preparation
 
+An unmatched flushed critical intent is `RECOVERY_REQUIRED`, even if partition creation did not finish. Reinspect the actual disk. Never replay an operation automatically. NTFS shrink is not reversed by deleting a record. Ownership must be established from exact GUID/geometry receipts, not labels, filesystem type or proximity.
 
-## Execution-service recovery
+Cleanup removes a verified owned temporary firmware entry and only verified owned partitions/files. Changed boot options, BootOrder references, foreign files, missing receipts or inaccessible filesystems may require manual investigation. A partition containing an installed loader is retained in full; cleanup does not remove its shared EFI files. An interrupted unformatted partition may require manual recovery if ownership/filesystem state cannot be established safely.
 
-An execution-service attempt has `plan.json` and `execution.jsonl`, protected from concurrent writers by an exclusive operation lease. `ExecutionCoordinator.InspectRecoveryAsync` checks sequence/order/phase/fingerprint consistency. Missing or truncated data, an unverified critical intent, or a fabricated completion phase requires investigation. Existing execution directories are never blindly replayed.
+After a cancelled preparation with all owned temporary partitions removed, **Reclaim cancelled allocation** can expand the original source only when the complete original range remains unallocated, original identities/layout still match, Windows reports it safe, and separate recovery consent is supplied. It does not reclaim Linux storage or infer that Linux is absent from a filesystem name.
 
-Directory bundles contain a `preparing` marker until their receipt is flushed. Preserve incomplete bundles for analysis; choose a new operation rather than silently resuming them. Receipt edits cannot authorize altered kernel/initrd/EFI bytes because verification compares them with the authenticated source ISO. Reparse points and unknown extra files are refused.
+## Installed systems
 
-Firmware cleanup requires the exact stored load-option hash, operation UUID, partition GUID and EFI path. A changed entry or persistent boot-order reference blocks deletion. A foreign one-time boot request is preserved. The native implementation remains gated pending qualification. These policies do not repair or remove unrelated Windows/Linux bootloaders.
+Boot Linux successfully, then return to Windows. Confirm the successful Linux boot and request verification. Completion requires an identified matching clean ext4 root in the reserved range, vendor boot evidence and a Windows reboot after preparation. Unsupported LVM/encryption/btrfs/dirty layouts remain pending. An installer reboot alone is not completion.
+
+Run cleanup only after the installer has stopped using its source. Installed boot dependencies remain. Automatic Linux removal is unavailable.
+
+## Windows boot recovery
+
+**Restore saved Windows boot configuration** is separately authorized. It verifies the saved BCD checksum and Windows build, exports current configuration before import, and restores a missing original Windows firmware entry only when its slot is free. Changed or unrelated firmware entries are not overwritten. BCD import can restore older settings: inspect the saved operation before approving it. If Windows cannot boot, use the normal Windows recovery environment and saved diagnostics; ORCHESTER does not run outside Windows.
+
+## Encryption and exports
+
+ORCHESTER never disables Secure Boot, routinely decrypts a disk or stores recovery keys. Encrypted/locked/unknown source volumes are refused. Preserve recovery-key access independently.
+
+Use **Export operation diagnostics** for sharing. Full local manifests contain identities and paths. The uninstaller refuses active preparation and preserves operation records, installed systems and downloaded images.

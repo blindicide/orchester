@@ -6,7 +6,7 @@ using Orchester.Security;
 namespace Orchester.Storage;
 
 // Fixed CIM/Storage commands, no raw NTFS resizing and no arbitrary PowerShell input.
-// Native execution is disabled by ReleaseGate until the disposable VM matrix is qualified.
+// Native execution requires an operation-scoped capability issued by the authorized helper.
 public sealed class WindowsStorageOperations(IStorageDiscovery discovery) : IStorageOperations {
     private const string Script = """
 $ErrorActionPreference='Stop'

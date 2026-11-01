@@ -68,8 +68,21 @@ public sealed class NativeOperationLifecycle(PrivilegedOperationStore store) {
             foreach(var expected in known) {
                 string path=WorkspaceSafety.ResolveChild(mount.DriveRoot,Locate(state,expected.RelativePath).Path);
                 if(!File.Exists(path))continue;
+                using var file=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read);
+                if(file.Length!=expected.Length||!Convert.ToHexString(await SHA256.HashDataAsync(file,ct)).Equals(expected.Sha256,StringComparison.OrdinalIgnoreCase))foreign=true;
+            }
+            // Installed boot entries and unfamiliar files can depend on the original chain.
+            // Retain the complete partition without removing any shared boot files.
+            if(foreign) {
+                await storage.UnmountAsync(state.Plan,owned,mount,ct);
+                state=state with {Mounts=state.Mounts.Remove(mount),RetainedPartitions=state.RetainedPartitions.Add(owned.PartitionId)};
+                await store.SaveAsync(state,ct);continue;
+            }
+            foreach(var expected in known) {
+                string path=WorkspaceSafety.ResolveChild(mount.DriveRoot,Locate(state,expected.RelativePath).Path);
+                if(!File.Exists(path))continue;
                 using(var file=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.Read)) {
-                    if(!Convert.ToHexString(await SHA256.HashDataAsync(file,ct)).Equals(expected.Sha256,StringComparison.OrdinalIgnoreCase)){foreign=true;continue;}
+                    if(!Convert.ToHexString(await SHA256.HashDataAsync(file,ct)).Equals(expected.Sha256,StringComparison.OrdinalIgnoreCase))throw new SafetyException("StagingChanged");
                 }
                 File.Delete(path);
             }
@@ -96,7 +109,8 @@ public sealed class NativeOperationLifecycle(PrivilegedOperationStore store) {
                 using var raw=new FileStream(@"\\.\PhysicalDrive"+disk.Number,FileMode.Open,FileAccess.Read,FileShare.ReadWrite,4096,FileOptions.RandomAccess);
                 var os=await new Ext4Identification(raw,partition.Offset,partition.Length,disk.LogicalSector).IdentifyAsync(ct);
                 string vendor=family=="debian"?"debian":"ubuntu";
-                bool boot=firmware.Entries.Any(e=>!e.WindowsBootManager&&e.PartitionId is not null&&e.EfiPath.StartsWith("\\EFI\\"+vendor+"\\",StringComparison.OrdinalIgnoreCase));
+                bool boot=firmware.Entries.Any(e=>!e.WindowsBootManager&&e.PartitionId is not null&&
+                    (state.Partitions.Any(p=>p.PartitionId==e.PartitionId&&p.Type==NativeLayout.EspType)||disk.Partitions.Any(p=>p.Id==e.PartitionId&&p.Offset>=reserved.Offset&&p.Offset+p.Length<=reserved.Offset+reserved.Length))&&e.EfiPath.StartsWith("\\EFI\\"+vendor+"\\",StringComparison.OrdinalIgnoreCase));
                 var profile=Orchester.Images.CatalogService.LoadBuiltin().Single(p=>p.Id==state.Plan.ProfileId);
                 var expected=profile.Version.Split(' ')[0].Split('.');var actual=os.Version.Split('.');int pieces=family=="debian"?1:Math.Min(2,expected.Length);
                 if(os.Id!=family||!boot||actual.Length<pieces||!expected.Take(pieces).SequenceEqual(actual.Take(pieces)))continue;

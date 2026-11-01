@@ -2,65 +2,60 @@
 
 **Optimized Robust Centralized Host Environment Staging, Transfer and Execution Runtime**
 
-Native Windows x64 utility for preparing Debian/Ubuntu dual boot without removable media. Built with C#, .NET 10, WPF and MVVM. English and Russian are available at runtime.
+Native Windows x64 dual-boot preparation utility, written in C# / .NET 10 with WPF and MVVM. English and Russian can be switched without restarting. No removable media, account, advertisements, telemetry or persistent service is required.
 
-## Current build: execution-services engineering preview
+## Current implementation: 0.3.0-preview.1
 
-The native bilingual application supports disk inspection, image verification, exact dry-run planning, **real directory staging bundles**, recovery diagnostics and **elevated read-only firmware inspection**. It also contains typed, tested services for Windows storage operations, UEFI one-time boot ownership, persistent execution, Ubuntu/Debian configuration previews, secure temporary credentials, completion evidence and authenticated updates.
+The application connects image verification, an exact storage plan, elevated preparation, internal installer staging and one-time UEFI boot. These are real storage and firmware operations; the review and consent screens precede execution.
 
-**It does not yet perform OS installation.** Native partition/firmware writes are compiled off. Production backend composition, trusted boot-chain deployment, privileged mutation authorization, installer completion transport and release-specific VM/hardware qualification remain open. All bundled release profiles are unvalidated. Read the [requirements matrix](docs/implementation-status.md) for exact status.
+- Seven-stage guided installation wizard, five navigation sections, light/dark themes and current/proposed partition maps.
+- Resumable HTTPS downloads, bounded publisher checksum retrieval, streaming SHA-256 verification and ISO inspection.
+- Windows storage discovery, supported NTFS shrinking, dedicated installer EFI/data partitions and independent identity/geometry revalidation.
+- Ubuntu/Mint Casper ISO staging; Debian hd-media staging with separately verified matching kernel/initrd.
+- Temporary owned firmware entry and BootNext, preserving Windows boot files and the permanent boot order.
+- Administrator helper with typed named-pipe commands, client identity verification, protected operation store, per-disk serialization and durable critical-action journal.
+- Management/recovery UI, owned-resource inspection and cleanup, saved Windows BCD recovery, guarded cancelled-allocation reclamation and redacted exports.
+- Installed ext4 system identification and completion confirmation after returning to Windows, with explicit successful Linux boot confirmation.
+- Portable self-contained Windows artifact and bilingual Inno Setup installer source.
 
-Implemented additions since the foundation:
+**Windows execution has not been validated in this environment.** Catalog profiles are candidate configurations, not advertised qualified releases. All are currently unvalidated: Secure Boot execution therefore refuses them. Encrypted/unknown source volumes are refused; ORCHESTER does not disable encryption or Secure Boot. Automated configuration generators exist, but live execution is guided-only. See [implementation status](docs/implementation-status.md).
 
-- Bounded ISO9660 extraction and source-authenticated staging receipts; explicit FAT32 limits, exclusive workspaces and interruption detection.
-- GPT UEFI device-path parsing, boot inventory, temporary-entry/BootNext policies and verified cleanup, with gated native firmware APIs.
-- A separate administrator helper with SID-restricted named pipes, launched-process verification, nonce authentication, bounded frames and read-only typed commands.
-- Fixed Windows-supported shrink/create/format/delete code, topology/ownership revalidation, and a flushed write-ahead execution coordinator. Native writes remain gated.
-- Ubuntu autoinstall and Debian preseed previews; strong hashed-password input, private temporary storage, no automatic Debian partition selection and guided-only Mint.
-- Completion evidence/installation registry and dependency-aware cleanup services.
-- Publisher-signed update metadata, downgrade rejection, streamed SHA-256, Authenticode publisher pinning and a production signing script. No update is executed automatically.
+## Get a build
 
-The original seven-stage WPF wizard, complete live en-US/ru-RU localization, light/dark themes, resumable downloads, storage visualizer, durable foundation journals and redacted diagnostic exports remain available.
+GitHub Actions → **Build** → latest successful branch run → **Orchester-win-x64**. Extract the entire folder and run `Orchester.App.exe`. The runtime is included. Keep the helper and all other files beside the application.
 
-## Build and run
+Automatic CI runs on Linux and cross-compiles/publishes Windows binaries. Windows jobs are explicitly operator-triggered. No Windows tests run automatically.
 
-On Windows 10 22H2 x64 or Windows 11 x64, install the .NET 10 SDK:
+To build on Windows 10 22H2 x64 / Windows 11 x64 with the .NET 10 SDK:
 
 ```powershell
 dotnet build Orchester.slnx -c Release
-dotnet run --project src/Orchester.App
+dotnet publish src/Orchester.App -c Release -r win-x64 --self-contained true -o artifacts/Orchester
+dotnet publish src/Orchester.Helper -c Release -r win-x64 --self-contained true -o artifacts/Orchester
 ```
 
-The UI starts as a normal user. Storage inspection can be incomplete without administrative access or the BitLocker module. This is displayed as unknown, never inferred as safe. There is no automatic elevation. A complete dry-run plan requires a host where the read-only queries can obtain every required safety observation.
+## Guided workflow
 
-```powershell
-dotnet run --project tests/Unit/Orchester.Tests.csproj -c Release
-python tests/check_resources.py
-```
+1. Select the matching distribution/release and import or download its ISO. Obtain an authentic publisher digest; official HTTPS checksum retrieval is available where configured. An unsigned mirror checksum alone is not independent authentication.
+2. Verify the image. For Debian provide the matching, authenticated hd-media kernel and initrd as well.
+3. Inspect eligible storage, choose the NTFS source and Linux allocation, then review both layouts and every proposed change.
+4. Save the exact reviewed plan, export the personalized installation guide and confirm storage consent and backup availability.
+5. Prepare through UAC. ORCHESTER shrinks the selected NTFS volume and creates its own installer partitions. Linux destination space stays unallocated for the native installer.
+6. Request one-time installer boot, then restart explicitly. Follow the exported guide; preserve original partitions and Windows EFI files.
+7. Boot Linux successfully, return to Windows, inspect the operation and confirm installation. Clean up verified temporary resources through Recovery.
 
-The portable core checks also run on Linux with .NET 10. WPF requires Windows. The Windows CI runner uses Windows Server for building, rendering and read-only diagnostics; it does not qualify Windows 10/11 installation support. GitHub Actions builds on Windows, runs core safety checks on both platforms and publishes a self-contained x64 preview artifact.
+See the concise [Windows handoff](docs/windows-handoff.md) before native execution. The application never promises full rollback of partitioning or installation.
 
-## Dry-run workflow
-
-1. Select a distribution and inspection release profile.
-2. Import a matching ISO or download it. Obtain its SHA-256 from authenticated publisher metadata (for example, a checksum file verified with the publisher's independently obtained signing key). Paste the digest and confirm its provenance. ORCHESTER does not promote a colocated unsigned checksum to publisher trust.
-3. Verify the image and inspect its boot components.
-4. Choose a healthy eligible GPT disk, unlocked unencrypted NTFS source partition, and Linux allocation in GiB. Staging space is additional to this allocation.
-5. Review the current/proposed maps and the explicit change list. Authorize saving the exact dry-run record.
-6. Save the operation. The journal remains at `PLAN_APPROVED`, indicating preparation has not executed. The final stage explains the installer handoff gate.
-7. Prepare and verify an inspection bundle from stage 6. This copies files only; it does not create bootable installation media.
-8. Use Recovery to inspect records, read firmware entries or inspect disk eligibility through UAC, and export redacted diagnostics.
-
-Data is stored beneath `%LOCALAPPDATA%\Orchester`. Manifests contain local device and image paths and should remain local. Shared diagnostic exports exclude those paths, mount letters, raw stable identities and image credentials. No passwords are collected. Logs use stable action codes rendered through complete language packs.
+Local UI data is under `%LOCALAPPDATA%\Orchester`; privileged operation records and image cache are under `%ProgramData%\Orchester\Operations`. Full manifests contain device identities and local paths. Use the redacted export for sharing.
 
 ## Documentation
 
-- [Execution services and test preparation](docs/execution-services.md)
-- [Architecture and trust boundaries](docs/architecture.md)
-- [Requirements and implementation status](docs/implementation-status.md)
-- [Recovery procedures](docs/recovery.md)
-- [VM and hardware validation matrix](tests/VirtualMachines/README.md)
-- [Distribution profile validation](docs/adapters.md)
+- [Implementation status](docs/implementation-status.md)
+- [Windows handoff](docs/windows-handoff.md)
+- [Architecture](docs/architecture.md)
+- [Execution workflow](docs/execution-services.md)
+- [Recovery](docs/recovery.md)
+- [Distribution profiles](docs/adapters.md)
 - [Packaging and signing](packaging/README.md)
 
-No telemetry, ads, mandatory accounts or persistent background service. No Linux removal, Windows replacement, BIOS/MBR modification or arbitrary downloaded scripts.
+Windows replacement, arbitrary Linux removal, BIOS/MBR, ARM and third-party adapter scripts are excluded.

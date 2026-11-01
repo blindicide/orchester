@@ -265,7 +265,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   if(Operations.Count==0)Operations.Add(l["NoOperations"]);
  }
  private async Task SaveGuideAsync(CancellationToken ct) {
-  InstallationPlan? selected=plan;
+  InstallationPlan? selected=Section==0?plan:null;
   if(selected is null&&SelectedOperation is not null) {
    var response=await ElevatedDiagnostics.SendAsync(new(1,SelectedOperation.OperationId,"",DiagnosticCommand.InspectOperation,null,null),ct);
    if(!response.Success)throw new SafetyException(response.ErrorCode??"UnexpectedError");

@@ -79,6 +79,7 @@ public sealed class PrivilegedOperationStore {
         foreach(string folder in Directory.EnumerateDirectories(Root)) {
             if(!Guid.TryParse(Path.GetFileName(folder),out _))continue;
             try {
+                using var lease=new FileStream(Path.Combine(folder,"control.lock"),FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);
                 var state=JsonSerializer.Deserialize<NativeOperationState>(await File.ReadAllTextAsync(Path.Combine(folder,"operation.json"),ct));
                 if(state is null||state.SchemaVersion!=1||state.Boot is not null||state.Mounts.Length>0||state.Partitions.Any(p=>!state.RetainedPartitions.Contains(p.PartitionId))||state.Phase is OperationPhase.RECOVERY_REQUIRED or OperationPhase.UNKNOWN_EXTERNAL_STATE)return false;
             }catch(Exception e)when(e is IOException or JsonException){return false;}
@@ -89,12 +90,15 @@ public sealed class PrivilegedOperationStore {
         var rows=ImmutableArray.CreateBuilder<NativeOperationSummary>();
         foreach(string folder in Directory.EnumerateDirectories(Root)) {
             if(!Guid.TryParse(Path.GetFileName(folder),out var id))continue;
-            try {var s=await LoadAsync(id,ct);
+            try {
+                using var control=Lock(id);
+                var s=await LoadAsync(id,ct);
                 if(s.Phase is not (OperationPhase.COMPLETED or OperationPhase.CANCELLED)&&File.Exists(Path.Combine(folder,"execution.jsonl"))) {
                     var recorded=await new ExecutionCoordinator(Root,null).InspectRecoveryAsync(id,ct);
-                    if(recorded is OperationPhase.RECOVERY_REQUIRED or OperationPhase.UNKNOWN_EXTERNAL_STATE){s=s with {Phase=recorded};await SaveAsync(s,ct);}
+                    if(recorded is OperationPhase.RECOVERY_REQUIRED or OperationPhase.UNKNOWN_EXTERNAL_STATE){s=s with {Phase=recorded};}
                 }
                 rows.Add(new(id,s.Plan.ProfileId,s.Phase,s.Plan.Created,s.ErrorCode,s.Phase==OperationPhase.BOOT_CONFIGURED,s.Partitions.Length>0));}
+            catch(SafetyException e)when(e.Code=="UnauthorizedRequest") { }
             catch(Exception e)when(e is IOException or JsonException or SafetyException) {rows.Add(new(id,"",OperationPhase.RECOVERY_REQUIRED,DateTimeOffset.MinValue,"JournalIncomplete",false,false));}
         }
         return rows.ToImmutable();

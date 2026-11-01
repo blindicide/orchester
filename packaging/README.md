@@ -1,20 +1,29 @@
-# Windows x64 preview packaging
+# Windows packaging
+
+## Portable folder
 
 ```powershell
-dotnet publish src/Orchester.App/Orchester.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/Orchester
-dotnet publish src/Orchester.Helper/Orchester.Helper.csproj -c Release -r win-x64 --self-contained true -o artifacts/Orchester
-Compress-Archive -Path artifacts/Orchester/* -DestinationPath artifacts/Orchester-win-x64-preview.zip
+dotnet publish src/Orchester.App -c Release -r win-x64 --self-contained true -o artifacts/Orchester
+dotnet publish src/Orchester.Helper -c Release -r win-x64 --self-contained true -o artifacts/Orchester
+Compress-Archive -Path artifacts/Orchester/* -DestinationPath artifacts/Orchester-win-x64.zip
 ```
 
-Keep WPF/resource/catalog files together. The self-contained portable folder requires no separate runtime installation. No Windows installer, production publisher certificate or update channel is supplied yet.
+Keep application, helper, resources and runtime together. No separate .NET installation is required. The UI starts unelevated; explicit native and diagnostic actions invoke the helper through UAC.
 
-For production, sign the application and every elevated executable with an organization-controlled Authenticode certificate using Windows SDK `signtool`, SHA-256 file digest and a trusted RFC3161 timestamp. Verify signatures during packaging and authenticate release metadata with a separately pinned update key. Keep signing keys in protected CI signing infrastructure, never in the repository. Installer and portable production artifacts must pass the VM and physical hardware matrix before publication.
+## Installer
 
+Install Inno Setup 6 on Windows, publish the portable folder above, then run:
 
-The app and `Orchester.Helper.exe` must stay in the same directory. The UI requests UAC only when the user chooses elevated diagnostics. The helper itself exposes read-only commands in this preview.
+```powershell
+& 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' packaging/Orchester.iss
+```
 
-`Sign-Release.ps1` signs and verifies ORCHESTER executables using an installed certificate selected by thumbprint and an explicit HTTPS timestamp service. It never accepts or stores a certificate password/private key. Supply production keys through protected signing infrastructure.
+The English/Russian x64 installer targets Windows 10 22H2 or later, installs in Program Files and offers an optional desktop shortcut. It installs no persistent service. Uninstall refuses active preparation and does not delete installed Linux systems, retained journals or downloaded images.
 
-`SignedRelease.Verify` accepts exact RSA-PSS/SHA-256 signed release metadata with schema/version/architecture/HTTPS URL/file SHA-256 and pinned Authenticode public-key SHA-256. It rejects downgrade metadata. `AuthenticatedUpdateDownload` stages the download and validates both its hash and Windows signature/publisher; it never launches the file. Provision the release-verification key independently; do not download the trust key with the update. Signature verification uses cached chain/revocation data and fails closed if that data is insufficient; it does not block on certificate network retrieval. A remote update service and update installation UI remain pending.
+The manual **Build** workflow exposes `windows_build` and `package_installer`. Select both for an operator-requested Windows setup build. Automatic CI only cross-publishes the portable folder on Linux. Existing Windows validation runs only when explicitly selected.
 
-Windows CI can temporarily create a self-signed code-signing fixture in the disposable runner's user key store and machine root store to test positive signature verification, wrong-publisher rejection and file tampering. The bounded wrapper removes the test certificate, key and fixture in `finally`; the test signer is never bundled into the product or trusted by product code.
+## Signing
+
+`Sign-Release.ps1` signs/verifies ORCHESTER binaries and setup using an installed certificate thumbprint and explicit HTTPS timestamp service. No signing certificate or private key is supplied. Sign app/helper assemblies and executables before setup compilation, then sign the setup executable. Keep keys outside the repository.
+
+Signed helpers verify matching GUI publisher identity. Production distribution requires a provisioned trusted Authenticode identity; unsigned branch artifacts are development distribution. Authenticated update services also need separately pinned publisher keys and hosted metadata. The verification library does not automatically launch an update; update installation UI is not supplied.
