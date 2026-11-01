@@ -54,7 +54,10 @@ public sealed class WindowsStorageDiscovery(bool includeSafetyDetails=true) : IS
   var result=ImmutableArray.CreateBuilder<DiskSnapshot>();
   foreach(var element in doc.RootElement.EnumerateArray()) {
    var node=System.Text.Json.Nodes.JsonNode.Parse(element.GetRawText())!;
-   foreach(var p in node["Partitions"]!.AsArray()) p!["Id"]=(Guid.TryParse(p["Id"]?.GetValue<string>(),out var id)?id:Guid.Empty).ToString("D");
+   foreach(var p in node["Partitions"]!.AsArray()) {
+    p!["Id"]=(Guid.TryParse(p["Id"]?.GetValue<string>(),out var id)?id:Guid.Empty).ToString("D");
+    if(Guid.TryParse(p["Type"]?.GetValue<string>(),out var type))p["Type"]=type.ToString("B").ToUpperInvariant();
+   }
    result.Add(node.Deserialize<DiskSnapshot>(options) ?? throw new SafetyException("DiscoveryFailed"));
   }
   return result.ToImmutable();

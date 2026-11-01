@@ -85,7 +85,7 @@ public static class AdvancedChecks {
             var changed=firmware.Read("Boot7000")!;changed[^5]^=1;firmware.Write("Boot7000",changed);
             Refuses(()=>boot.RemoveOwned(bootOwned),"BootOwnershipMismatch");
             Refuses(()=>boot.Register(plan.OperationId,bootPartition,512,@"\EFI\ORCHESTER\shim.efi"),"BootConfigurationChanged");
-            Refuses(ReleaseGate.RequireNativeWrites,"ExecutionUnavailable");
+            Refuses(ReleaseGate.RequireNativeWrites,"UnauthorizedRequest");
             var shrunk=disk with {Partitions=[source with {Length=source.Length-plan.RequestedBytes-plan.StagingBytes}]};
             StorageStatePolicy.ValidateAfterShrink(plan,shrunk);Check(true,"expected post-shrink geometry accepted");
             Refuses(()=>StorageStatePolicy.ValidateAfterShrink(plan,shrunk with {Partitions=[source]}),"LayoutChanged");

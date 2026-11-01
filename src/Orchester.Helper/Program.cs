@@ -45,6 +45,9 @@ try {
             case DiagnosticCommand.CleanupOperation:
             case DiagnosticCommand.CompleteInstallation:
             case DiagnosticCommand.InspectOperation:
+            case DiagnosticCommand.RestoreWindowsBoot:
+            case DiagnosticCommand.ReclaimAllocation:
+            case DiagnosticCommand.ExportOperation:
                 data=await NativeDispatcher.ExecuteAsync(request,pipe,timeout.Token);break;
             default: throw new SafetyException("UnauthorizedRequest");
         }

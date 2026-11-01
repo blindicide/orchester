@@ -229,4 +229,10 @@
 <sys:String x:Key="HdInitrdPath">Matching Debian hd-media initrd path</sys:String>
 <sys:String x:Key="QualifiedRelease">Release profile: qualified</sys:String>
 <sys:String x:Key="PendingRelease">Release profile: Windows qualification pending; Secure Boot execution is unavailable until qualified.</sys:String>
+<sys:String x:Key="RecoveryConsent">I authorize this separate recovery operation. Restoring BCD replaces entries added since its backup; reclaiming space extends Windows only into the cancelled operation’s still-unallocated space.</sys:String>
+<sys:String x:Key="RestoreWindowsBoot">Restore saved Windows boot configuration</sys:String>
+<sys:String x:Key="ReclaimAllocation">Reclaim cancelled allocation</sys:String>
+<sys:String x:Key="WindowsBootRestored">Saved Windows BCD configuration restored. The configuration replaced by this action was backed up first.</sys:String>
+<sys:String x:Key="AllocationRestored">The eligible Windows volume was extended into its verified unallocated space.</sys:String>
+<sys:String x:Key="StorageBusy">Another operation still owns active preparation resources on this disk. Recover or clean up that operation first.</sys:String>
 </ResourceDictionary>

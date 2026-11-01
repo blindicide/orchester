@@ -19,6 +19,12 @@ internal static class NativeDispatcher {
         var store=new PrivilegedOperationStore();
         if(message.Command==DiagnosticCommand.ListOperations)return await store.ListAsync(ct);
         if(message.Command==DiagnosticCommand.InspectOperation)return await store.LoadAsync(message.OperationId,ct);
+        if(message.Command==DiagnosticCommand.ExportOperation) {
+            var s=await store.LoadAsync(message.OperationId,ct);
+            return new {Operation=s.Plan.OperationId,s.Phase,s.ErrorCode,Profile=s.Plan.ProfileId,Created=s.Plan.Created,Allocation=s.Plan.RequestedBytes,
+                Partitions=s.Partitions.Select(p=>new{p.Number,p.Offset,p.Length,p.FileSystem,p.Type}),RetainedCount=s.RetainedPartitions.Length,
+                BootNumber=s.Boot?.Number,ImageSha256=s.Plan.Image.Sha256};
+        }
         if(message.Command==DiagnosticCommand.PrepareInstallation) {
             var request=message.Execution??throw new SafetyException("AuthorizationRequired");var plan=request.Plan;
             if(plan is null||plan.OriginalDisk is null||plan.Image is null||plan.Changes.IsDefault||plan.OriginalDisk.Partitions.IsDefault)throw new SafetyException("UnauthorizedRequest");
@@ -30,6 +36,8 @@ internal static class NativeDispatcher {
             using var permit=ReleaseGate.Authorize(plan.OperationId);
             var current=(await new WindowsStorageDiscovery().DiscoverAsync(ct)).SingleOrDefault(d=>d.Number==plan.OriginalDisk.Number)??throw new SafetyException("DiskChanged");
             PlanGuard.Validate(plan,current,request.Fingerprint,true);
+            using var diskLease=store.LockDisk(plan.OriginalDisk.StableId);
+            await store.EnsureDiskAvailableAsync(plan,ct);
             await store.CreateAsync(plan,ct);
             using var lease=store.Lock(plan.OperationId);
             try {
@@ -44,11 +52,14 @@ internal static class NativeDispatcher {
                 return Summary(await store.LoadAsync(plan.OperationId,ct));
             } catch(Exception error) {
                 var state=await store.LoadAsync(plan.OperationId,CancellationToken.None);
-                await store.SaveAsync(state with {Phase=state.Partitions.Length==0?OperationPhase.FAILED:OperationPhase.RECOVERY_REQUIRED,ErrorCode=error is SafetyException safety?safety.Code:"UnexpectedError"},CancellationToken.None);
+                var failedPhase=File.Exists(Path.Combine(store.Folder(plan.OperationId),"execution.jsonl"))?await new ExecutionCoordinator(store.Root,null).InspectRecoveryAsync(plan.OperationId,CancellationToken.None):OperationPhase.FAILED;
+                if(failedPhase is not (OperationPhase.FAILED or OperationPhase.CANCELLED))failedPhase=OperationPhase.RECOVERY_REQUIRED;
+                await store.SaveAsync(state with {Phase=failedPhase,ErrorCode=error is SafetyException safety?safety.Code:"UnexpectedError"},CancellationToken.None);
                 throw;
             }
         }
         var existing=await store.LoadAsync(message.OperationId,ct);
+        using var diskControl=store.LockDisk(existing.Plan.OriginalDisk.StableId);
         using var control=store.Lock(message.OperationId);
         using var authorization=ReleaseGate.Authorize(message.OperationId);
         switch(message.Command) {
@@ -61,7 +72,19 @@ internal static class NativeDispatcher {
                 catch {await store.SaveAsync(existing with {Phase=OperationPhase.UNKNOWN_EXTERNAL_STATE},CancellationToken.None);throw;}
                 return Summary(await store.LoadAsync(message.OperationId,ct));
             case DiagnosticCommand.CleanupOperation:
-                return await new NativeOperationLifecycle(store).CleanupAsync(existing,ct);
+                await NativeSourceRecovery.Log(Path.Combine(store.Folder(message.OperationId),"recovery.jsonl"),message.OperationId,"Cleanup","INTENT");
+                var cleanup=await new NativeOperationLifecycle(store).CleanupAsync(existing,ct);
+                await NativeSourceRecovery.Log(Path.Combine(store.Folder(message.OperationId),"recovery.jsonl"),message.OperationId,"Cleanup","VERIFIED");return cleanup;
+            case DiagnosticCommand.ReclaimAllocation:
+                if(!message.RecoveryConsent)throw new SafetyException("AuthorizationRequired");
+                await NativeSourceRecovery.ReclaimAsync(existing,store.Folder(message.OperationId),ct);return Summary(existing);
+            case DiagnosticCommand.RestoreWindowsBoot:
+                if(!message.RecoveryConsent)throw new SafetyException("AuthorizationRequired");
+                var restoreDisk=(await new WindowsStorageDiscovery(false).DiscoverAsync(ct)).SingleOrDefault(d=>d.Number==existing.Plan.OriginalDisk.Number)??throw new SafetyException("DiskChanged");
+                if(restoreDisk.StableId!=existing.Plan.OriginalDisk.StableId||existing.Plan.OriginalDisk.Partitions.Any(p=>!restoreDisk.Partitions.Any(c=>c.Id==p.Id&&c.Offset==p.Offset)))throw new SafetyException("DiskChanged");
+                await NativeSourceRecovery.Log(Path.Combine(store.Folder(message.OperationId),"recovery.jsonl"),message.OperationId,"RestoreWindowsBoot","INTENT");
+                await WindowsBootBackup.RestoreAsync(store.Folder(message.OperationId),ct);
+                await NativeSourceRecovery.Log(Path.Combine(store.Folder(message.OperationId),"recovery.jsonl"),message.OperationId,"RestoreWindowsBoot","VERIFIED");return Summary(existing);
             case DiagnosticCommand.CompleteInstallation:
                 return await new NativeOperationLifecycle(store).ConfirmAsync(existing,message.LinuxBootConfirmed,ct);
             default:throw new SafetyException("UnauthorizedRequest");

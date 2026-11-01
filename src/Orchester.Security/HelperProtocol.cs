@@ -7,9 +7,9 @@ using System.Text.Json;
 using Orchester.Core;
 namespace Orchester.Security;
 
-public enum DiagnosticCommand { InspectHost, InspectFirmware, ValidatePlan, InspectStorage, PrepareInstallation, RequestInstallerBoot, ListOperations, CleanupOperation, CompleteInstallation, InspectOperation }
+public enum DiagnosticCommand { InspectHost, InspectFirmware, ValidatePlan, InspectStorage, PrepareInstallation, RequestInstallerBoot, ListOperations, CleanupOperation, CompleteInstallation, InspectOperation, RestoreWindowsBoot, ReclaimAllocation, ExportOperation }
 public sealed record DiagnosticRequest(int Version, Guid OperationId, string Nonce, DiagnosticCommand Command,
-    InstallationPlan? Plan, string? Fingerprint, ExecutionRequest? Execution=null,bool LinuxBootConfirmed=false);
+    InstallationPlan? Plan, string? Fingerprint, ExecutionRequest? Execution=null,bool LinuxBootConfirmed=false,bool RecoveryConsent=false);
 public sealed record DiagnosticResponse(int Version, Guid OperationId, bool Success, string? ErrorCode, JsonElement? Data,bool IsProgress=false);
 public static class HelperProtocol {
     [DllImport("kernel32.dll", SetLastError=true)]

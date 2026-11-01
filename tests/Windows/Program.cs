@@ -79,7 +79,7 @@ public static class Program {
    model.IsoPath=path;model.Digest=Convert.ToHexString(SHA256.HashData(iso));model.DigestTrusted=true;
    await ((AsyncCommand)model.VerifyCommand).ExecuteAsync();
    model.Stage=3;await ((AsyncCommand)model.NextCommand).ExecuteAsync();
-   if(model.Stage!=4 || model.Changes.Count!=3)throw new Exception("Dry-run preview failed: "+model.Status);
+   if(model.Stage!=4 || model.Changes.Count!=4)throw new Exception("Dry-run preview failed: "+model.Status);
    model.Approved=true;await ((AsyncCommand)model.SavePlanCommand).ExecuteAsync();
    var id=store.ListOperations().Single();
    if((await store.LoadAsync(id,default)).Phase!=OperationPhase.PLAN_APPROVED || model.Stage!=5)throw new Exception("Dry-run journal phase failed");

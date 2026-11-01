@@ -229,4 +229,10 @@
 <sys:String x:Key="HdInitrdPath">Путь к соответствующему initrd Debian hd-media</sys:String>
 <sys:String x:Key="QualifiedRelease">Профиль выпуска: квалифицирован</sys:String>
 <sys:String x:Key="PendingRelease">Профиль выпуска: ожидается квалификация Windows; выполнение при Secure Boot недоступно до квалификации.</sys:String>
+<sys:String x:Key="RecoveryConsent">Я разрешаю эту отдельную операцию восстановления. Восстановление BCD заменяет записи, добавленные после копирования; возврат места расширяет Windows только в оставшуюся неразмеченной область отменённой операции.</sys:String>
+<sys:String x:Key="RestoreWindowsBoot">Восстановить сохранённую конфигурацию загрузки Windows</sys:String>
+<sys:String x:Key="ReclaimAllocation">Вернуть место отменённой операции</sys:String>
+<sys:String x:Key="WindowsBootRestored">Сохранённая конфигурация BCD Windows восстановлена. Перед заменой текущей конфигурации создана её копия.</sys:String>
+<sys:String x:Key="AllocationRestored">Подходящий том Windows расширен в проверенную неразмеченную область.</sys:String>
+<sys:String x:Key="StorageBusy">Другая операция ещё использует ресурсы подготовки на этом диске. Сначала восстановите или очистите её.</sys:String>
 </ResourceDictionary>

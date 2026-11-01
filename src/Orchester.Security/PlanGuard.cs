@@ -7,8 +7,12 @@ public static class PlanGuard {
  public static void Validate(InstallationPlan plan, DiskSnapshot current, string approvedFingerprint, bool executing) {
   if (!CryptographicOperations.FixedTimeEquals(System.Text.Encoding.UTF8.GetBytes(Fingerprint(plan)), System.Text.Encoding.UTF8.GetBytes(approvedFingerprint))) throw new SafetyException("PlanChanged");
   if (plan.OriginalDisk.StableId != current.StableId || plan.OriginalDisk.Number != current.Number || string.IsNullOrWhiteSpace(current.StableId)) throw new SafetyException("DiskChanged");
-  // Compare all geometry and safety observations, including partition identities and shrink limits.
-  if (JsonSerializer.Serialize(plan.OriginalDisk) != JsonSerializer.Serialize(current)) throw new SafetyException("LayoutChanged");
+  // Compare stable topology. Fresh health, encryption, dirty state and shrink limits are checked independently below.
+  if(plan.OriginalDisk.Capacity!=current.Capacity||plan.OriginalDisk.LogicalSector!=current.LogicalSector||plan.OriginalDisk.PhysicalSector!=current.PhysicalSector||plan.OriginalDisk.PartitionStyle!=current.PartitionStyle||plan.OriginalDisk.Partitions.Length!=current.Partitions.Length)throw new SafetyException("LayoutChanged");
+  foreach(var original in plan.OriginalDisk.Partitions) {
+   var observed=current.Partitions.SingleOrDefault(p=>p.Id==original.Id);
+   if(observed is null||observed.Number!=original.Number||observed.Offset!=original.Offset||observed.Length!=original.Length||observed.Type!=original.Type||observed.FileSystem!=original.FileSystem||observed.MountPoint!=original.MountPoint||observed.IsBoot!=original.IsBoot||observed.IsSystem!=original.IsSystem)throw new SafetyException("LayoutChanged");
+  }
   ValidateDisk(current);
   var source = current.Partitions.SingleOrDefault(x => x.Id == plan.SourcePartition) ?? throw new SafetyException("SourceMissing");
   if (!Guid.TryParse(source.Type,out var sourceType) || sourceType!=new Guid("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7") || source.Dirty!=false || source.Protected || source.FileSystem != "NTFS" || source.Health != "Healthy" || source.Encryption != EncryptionState.Unencrypted || source.ShrinkBytes is null) throw new SafetyException("UnsafeSource");

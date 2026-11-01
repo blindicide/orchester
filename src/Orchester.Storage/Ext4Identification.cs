@@ -17,7 +17,7 @@ public sealed class Ext4Identification(FileStream disk,long partitionOffset,long
         if((readOnlyFeatures&0x400)!=0&&Crc32C(sb.AsSpan(0,1020))!=U32(sb,1020))throw new SafetyException("InvalidGeometry");
         uint log=U32(sb,24);if(log>6)throw new SafetyException("InvalidGeometry");
         blockSize=1024u<<(int)log;inodesPerGroup=U32(sb,40);inodeSize=U16(sb,88);firstDataBlock=U32(sb,20);wide=(incompat&0x80)!=0;
-        descriptorSize=wide?U16(sb,254):32;blocks=U32(sb,4)|(wide?(ulong)U32(sb,336)<<32:0);
+        descriptorSize=wide?U16(sb,254):32u;blocks=U32(sb,4)|(wide?(ulong)U32(sb,336)<<32:0);
         if(blockSize>65536||inodeSize<128||inodeSize>blockSize||inodesPerGroup==0||descriptorSize<32||descriptorSize>blockSize||blocks>(ulong)partitionLength/blockSize)throw new SafetyException("InvalidGeometry");
         Inode? osRelease=await Find("usr/lib/os-release",ct)??await Find("etc/os-release",ct);
         if(osRelease is null||(osRelease.Mode&0xf000)!=0x8000||osRelease.Length>65536)throw new SafetyException("CompletionEvidenceInsufficient");

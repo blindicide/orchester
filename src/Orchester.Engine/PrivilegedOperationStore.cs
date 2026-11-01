@@ -41,6 +41,16 @@ public sealed class PrivilegedOperationStore {
         acl.AddAccessRule(new(new SecurityIdentifier("S-1-3-4"),FileSystemRights.ReadPermissions,InheritanceFlags.ContainerInherit|InheritanceFlags.ObjectInherit,PropagationFlags.None,AccessControlType.Allow));
         new DirectoryInfo(path).SetAccessControl(acl);
     }
+    public FileStream LockDisk(string identity)=>new(Path.Combine(Root,"disk-"+Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)))+".lock"),FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);
+    public async Task EnsureDiskAvailableAsync(InstallationPlan plan,CancellationToken ct) {
+        foreach(string folder in Directory.EnumerateDirectories(Root)) {
+            if(!Guid.TryParse(Path.GetFileName(folder),out _))continue;
+            var state=JsonSerializer.Deserialize<NativeOperationState>(await File.ReadAllTextAsync(Path.Combine(folder,"operation.json"),ct))??throw new SafetyException("JournalIncomplete");
+            if(state.Plan.OriginalDisk.StableId!=plan.OriginalDisk.StableId)continue;
+            bool resources=state.Partitions.Any(p=>!state.RetainedPartitions.Contains(p.PartitionId));
+            if(resources||state.Phase is not (OperationPhase.COMPLETED or OperationPhase.CANCELLED or OperationPhase.FAILED))throw new SafetyException("StorageBusy");
+        }
+    }
     public string Folder(Guid operationId)=>WorkspaceSafety.ResolveChild(Root,operationId.ToString("D"));
     public async Task CreateAsync(InstallationPlan plan,CancellationToken ct) {
         string folder=Folder(plan.OperationId);

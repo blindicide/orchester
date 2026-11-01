@@ -43,7 +43,7 @@ try {
  Refuses(()=>PlanGuard.ValidateDisk(disk with { Partitions=[partition,partition with {Number=4,Id=Guid.NewGuid()}] }),"InvalidGeometry");
  var malicious=plan with {Changes=[new("FormatEsp",Guid.NewGuid(),0,GiB,true)]};
  Refuses(()=>PlanGuard.Validate(malicious,disk,PlanGuard.Fingerprint(malicious),false),"PlanChanged");
- Refuses(()=>PlanGuard.Validate(plan,disk,fingerprint,true),"ExecutionUnavailable");
+ Refuses(()=>PlanGuard.Validate(plan,disk,fingerprint,true),"PlanChanged");
  Refuses(()=>HelperPolicy.Authorize(new(1,Guid.NewGuid(),fingerprint,HelperCommand.Inspect),plan,disk),"UnauthorizedRequest");
  Refuses(()=>DistributionAdapter.For(profile).ValidateHost(new("Windows",true,true,true,true),profile with {SecureBoot=false}),"SecureBootUnsupported");
  Refuses(()=>DistributionAdapter.For(profile).ValidateRelease(profile,true),"ReleaseUnvalidated");
