@@ -21,8 +21,14 @@ public static class HelperProtocol {
             request.Nonce is null || request.Nonce.Length != 64 || expectedNonce.Length != 64 ||
             !CryptographicOperations.FixedTimeEquals(System.Text.Encoding.ASCII.GetBytes(request.Nonce), System.Text.Encoding.ASCII.GetBytes(expectedNonce)))
             throw new SafetyException("UnauthorizedRequest");
-        if (request.Command == DiagnosticCommand.ValidatePlan && (request.Plan is null || request.Plan.OperationId != request.OperationId || request.Fingerprint is null))
-            throw new SafetyException("UnauthorizedRequest");
+        if(request.Command==DiagnosticCommand.ValidatePlan) {
+            var p=request.Plan;
+            if(p is null||p.OperationId!=request.OperationId||p.OriginalDisk is null||p.Image is null||
+                p.OriginalDisk.Partitions.IsDefault||p.OriginalDisk.Partitions.Any(partition=>partition is null)||
+                p.Changes.IsDefault||p.Changes.Any(change=>change is null)||
+                p.Image.Sha256 is not {Length:64}||!p.Image.Sha256.All(Uri.IsHexDigit)||
+                request.Fingerprint is not {Length:64}||!request.Fingerprint.All(Uri.IsHexDigit))throw new SafetyException("UnauthorizedRequest");
+        }
     }
     public static async Task WriteAsync<T>(Stream stream, T value, CancellationToken ct) {
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(value);

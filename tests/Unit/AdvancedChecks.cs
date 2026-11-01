@@ -95,6 +95,7 @@ public static class AdvancedChecks {
             HelperProtocol.Authenticate(request,nonce);Check(true,"typed helper request bound to nonce and operation");
             Refuses(()=>HelperProtocol.Authenticate(request,HelperProtocol.NewNonce()),"UnauthorizedRequest");
             Refuses(()=>HelperProtocol.Authenticate(request with {Command=(DiagnosticCommand)999},nonce),"UnauthorizedRequest");
+            Refuses(()=>HelperProtocol.Authenticate(request with {Plan=plan with {Image=null!}},nonce),"UnauthorizedRequest");
             using(var frames=new MemoryStream()) {await HelperProtocol.WriteAsync(frames,request,default);frames.Position=0;Check((await HelperProtocol.ReadAsync<DiagnosticRequest>(frames,default)).OperationId==plan.OperationId,"bounded IPC frame round trip");}
             using(var bad=new MemoryStream(new byte[]{255,255,255,127}))await RefusesAsync(()=>HelperProtocol.ReadAsync<DiagnosticRequest>(bad,default),"IpcFrameInvalid");
             var executable=plan with {DryRun=false};string executionRoot=Path.Combine(root,"execution");
