@@ -10,9 +10,11 @@ namespace Orchester.Engine;
 [SupportedOSPlatform("windows")]
 public sealed class PrivilegedOperationStore {
     public string Root {get;}
+    private readonly string ownerSid;
     private static readonly SecurityIdentifier Admins=new(WellKnownSidType.BuiltinAdministratorsSid,null);
     private static readonly SecurityIdentifier SystemAccount=new(WellKnownSidType.LocalSystemSid,null);
-    public PrivilegedOperationStore() {
+    public PrivilegedOperationStore(string? ownerSid=null) {
+        this.ownerSid=ownerSid??WindowsIdentity.GetCurrent().User?.Value??throw new SafetyException("UnauthorizedRequest");
         string parent=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"Orchester");
         WorkspaceSafety.RejectReparsePoints(parent);
         if(Directory.Exists(parent)) {
@@ -56,7 +58,7 @@ public sealed class PrivilegedOperationStore {
         string folder=Folder(plan.OperationId);
         if(Directory.Exists(folder))throw new SafetyException("OperationExists");
         Directory.CreateDirectory(folder);Protect(folder);
-        var sid=WindowsIdentity.GetCurrent().User?.Value??throw new SafetyException("UnauthorizedRequest");
+        var sid=ownerSid;
         await SaveAsync(new(1,plan,sid,DateTimeOffset.UtcNow,[],[],null,OperationPhase.PLAN_APPROVED,null,null,[]),ct);
     }
     public async Task SaveAsync(NativeOperationState state,CancellationToken ct) {
@@ -69,10 +71,20 @@ public sealed class PrivilegedOperationStore {
     }
     public async Task<NativeOperationState> LoadAsync(Guid id,CancellationToken ct) {
         var state=JsonSerializer.Deserialize<NativeOperationState>(await File.ReadAllTextAsync(Path.Combine(Folder(id),"operation.json"),ct))??throw new SafetyException("JournalIncomplete");
-        if(state.SchemaVersion!=1||state.Plan.OperationId!=id||state.OwnerSid!=WindowsIdentity.GetCurrent().User?.Value)throw new SafetyException("UnauthorizedRequest");
+        if(state.SchemaVersion!=1||state.Plan.OperationId!=id||state.OwnerSid!=ownerSid)throw new SafetyException("UnauthorizedRequest");
         return state;
     }
     public FileStream Lock(Guid id)=>new(Path.Combine(Folder(id),"control.lock"),FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);
+    public async Task<bool> CanUninstallAsync(CancellationToken ct) {
+        foreach(string folder in Directory.EnumerateDirectories(Root)) {
+            if(!Guid.TryParse(Path.GetFileName(folder),out _))continue;
+            try {
+                var state=JsonSerializer.Deserialize<NativeOperationState>(await File.ReadAllTextAsync(Path.Combine(folder,"operation.json"),ct));
+                if(state is null||state.SchemaVersion!=1||state.Boot is not null||state.Mounts.Length>0||state.Partitions.Any(p=>!state.RetainedPartitions.Contains(p.PartitionId))||state.Phase is OperationPhase.RECOVERY_REQUIRED or OperationPhase.UNKNOWN_EXTERNAL_STATE)return false;
+            }catch(Exception e)when(e is IOException or JsonException){return false;}
+        }
+        return true;
+    }
     public async Task<ImmutableArray<NativeOperationSummary>> ListAsync(CancellationToken ct) {
         var rows=ImmutableArray.CreateBuilder<NativeOperationSummary>();
         foreach(string folder in Directory.EnumerateDirectories(Root)) {

@@ -17,13 +17,7 @@ public sealed class WindowsStorageDiscovery(bool includeSafetyDetails=true) : IS
    try { $v=$p | Get-Volume -ErrorAction Stop } catch {}
    if ($probeSafety -and $v -and $v.FileSystemType -eq 'NTFS') {
     try { $s=$p | Get-PartitionSupportedSize -ErrorAction Stop; $limit=[long]($p.Size-$s.SizeMin) } catch {}
-    try {
-     $b=Get-BitLockerVolume -MountPoint $v.Path -ErrorAction Stop
-     if ($b.LockStatus -eq 'Locked') {$enc='Locked'}
-     elseif ($b.VolumeStatus -eq 'FullyDecrypted') {$enc='Unencrypted'}
-     elseif ($b.ProtectionStatus -eq 'On') {$enc='Protected'}
-     else {$enc='Suspended'}
-    } catch {}
+    $enc=Get-OrchesterEncryption $v
    }
    [pscustomobject]@{ Number=[int]$p.PartitionNumber; Id=[string]$p.Guid; Type=[string]$p.GptType; Offset=[long]$p.Offset; Length=[long]$p.Size; FileSystem=[string]$v.FileSystemType; MountPoint=[string]$v.DriveLetter; Health=[string]$v.HealthStatus; Encryption=$enc; ShrinkBytes=$limit; IsSystem=[bool]$p.IsSystem; IsBoot=[bool]$p.IsBoot }
   })
@@ -36,7 +30,7 @@ public sealed class WindowsStorageDiscovery(bool includeSafetyDetails=true) : IS
   var executable=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","powershell.exe");
   var start=new ProcessStartInfo(executable) { UseShellExecute=false, CreateNoWindow=true, RedirectStandardOutput=true, RedirectStandardError=true, StandardOutputEncoding=Encoding.UTF8 };
   start.Environment["PSModulePath"]=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","Modules");
-  foreach(var arg in new[]{"-NoLogo","-NoProfile","-NonInteractive","-EncodedCommand",Convert.ToBase64String(Encoding.Unicode.GetBytes("$probeSafety="+(includeSafetyDetails?"$true":"$false")+";\n"+Script))}) start.ArgumentList.Add(arg);
+  foreach(var arg in new[]{"-NoLogo","-NoProfile","-NonInteractive","-EncodedCommand",Convert.ToBase64String(Encoding.Unicode.GetBytes("$probeSafety="+(includeSafetyDetails?"$true":"$false")+";\n"+WindowsEncryptionQuery.Script+"\n"+Script))}) start.ArgumentList.Add(arg);
   using var process=Process.Start(start) ?? throw new SafetyException("DiscoveryFailed");
   using var timeout=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); timeout.CancelAfter(TimeSpan.FromSeconds(includeSafetyDetails?180:30));
   var output=process.StandardOutput.ReadToEndAsync(timeout.Token); var error=process.StandardError.ReadToEndAsync(timeout.Token);

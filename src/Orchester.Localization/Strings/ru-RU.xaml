@@ -41,14 +41,14 @@
 <sys:String x:Key="CurrentLayout">Текущая разметка</sys:String>
 <sys:String x:Key="ProposedLayout">Предлагаемая разметка · не применена</sys:String>
 <sys:String x:Key="ReviewWarning">Сжатие NTFS условно обратимо и может привести к потере данных. Сохраните резервные копии важных файлов. Этот просмотр не изменяет диски.</sys:String>
-<sys:String x:Key="Approve">Я проверил именно этот план и разрешаю сохранить запись пробного запуска.</sys:String>
-<sys:String x:Key="SavePlan">Сохранить пробный запуск</sys:String>
-<sys:String x:Key="DryRunSaved">Манифест и надёжный журнал пробного запуска сохранены. Разделы и загрузочные записи не изменены.</sys:String>
+<sys:String x:Key="Approve">Я проверил именно этот план и разрешаю сохранить его.</sys:String>
+<sys:String x:Key="SavePlan">Сохранить утверждённый план</sys:String>
+<sys:String x:Key="DryRunSaved">Утверждённый план и журнал сохранены. Состояние подготовки и восстановления показано ниже.</sys:String>
 <sys:String x:Key="RestartBlocked">Передача управления установщику недоступна до проверки загрузки, дисков и профилей дистрибутивов в одноразовых ВМ. Операция остаётся незавершённой; перезагрузка не подтверждает успешную установку.</sys:String>
 <sys:String x:Key="Inspect">Проверить журналы операций</sys:String>
 <sys:String x:Key="Export">Экспорт обезличенной диагностики…</sys:String>
 <sys:String x:Key="Exported">Обезличенная диагностика экспортирована.</sys:String>
-<sys:String x:Key="RecoveryHelp">Прерванные или противоречивые записи требуют анализа. Очистка допускается только при подтверждённой принадлежности ORCHESTER; автоматическая очистка и восстановление загрузки в этой версии недоступны.</sys:String>
+<sys:String x:Key="RecoveryHelp">Выберите операцию и просмотрите её ресурсы перед очисткой. Ресурсы с установленными загрузчиками или посторонними файлами сохраняются. Восстановление загрузки и возврат места требуют отдельного согласия.</sys:String>
 <sys:String x:Key="ManagementHelp">Ниже показаны известные операции. Сохранённый план не подтверждает установленную Linux. Удаление ОС и возврат разделов недоступны.</sys:String>
 <sys:String x:Key="NoOperations">Сохранённых операций нет.</sys:String>
 <sys:String x:Key="DiskSummary">Диск {0}: {1} · {2:N1} ГиБ · {3} · {4}</sys:String>
@@ -78,7 +78,7 @@
 <sys:String x:Key="Ready">Готово.</sys:String>
 <sys:String x:Key="Busy">Выполняется…</sys:String>
 <sys:String x:Key="Cancelled">Операция отменена. Частично загруженные файлы сохранены для продолжения.</sys:String>
-<sys:String x:Key="UnexpectedError">Операция не выполнена. Проверьте диагностику восстановления; запись на диски не выполнялась.</sys:String>
+<sys:String x:Key="UnexpectedError">Операция не выполнена. Перед повтором проверьте восстановление и записи операции.</sys:String>
 <sys:String x:Key="PlanChanged">Утверждённый план изменён. Проверьте его заново.</sys:String>
 <sys:String x:Key="DiskChanged">Идентификатор диска изменился. Обновите сведения.</sys:String>
 <sys:String x:Key="LayoutChanged">Метаданные диска изменились. Создайте новый план.</sys:String>
@@ -241,4 +241,18 @@
 <sys:String x:Key="ChecksumMetadataInvalid">Опубликованный список контрольных сумм отсутствует, неоднозначен или не содержит этот точный образ.</sys:String>
 <sys:String x:Key="DownloadRedirectInvalid">Сервер вернул некорректное или чрезмерное перенаправление загрузки.</sys:String>
 <sys:String x:Key="BootBackupIncompatible">Сохранённая конфигурация загрузки относится к другой сборке Windows. Используйте штатное восстановление Windows.</sys:String>
+<sys:String x:Key="SaveGuide">Сохранить персональные инструкции установки</sys:String>
+<sys:String x:Key="InstallGuideHeading">Установка с подсказками: определите нужный диск и сохраните все исходные разделы ниже.</sys:String>
+<sys:String x:Key="GuideDisk">Модель диска: {0}; ёмкость: {1:N1} ГиБ; стабильный идентификатор Windows: {2}. Номера дисков Windows не определяют имена устройств Linux.</sys:String>
+<sys:String x:Key="GuideRange">Выделенная область Linux: {0:N0}–{1:N0} МиБ от начала диска ({2:N1} ГиБ).</sys:String>
+<sys:String x:Key="GuideInstructions">Выберите ручное разбиение в штатном установщике. Сопоставьте диск по модели, ёмкости и UUID разделов; поможет lsblk -o NAME,SIZE,MODEL,SERIAL,PARTUUID. Создайте корневой раздел ext4 с точкой / только внутри выделенной области. Сохраните раздел данных установщика. Используйте новый раздел EFI FAT32 объёмом 512 МиБ для /boot/efi без повторного форматирования. ORCHESTER сохранит его, если он используется загрузчиком Linux. Для автоматической проверки не используйте зашифрованный корень или LVM.</sys:String>
+<sys:String x:Key="GuidePreserve">Исходные разделы: не форматируйте, не удаляйте и не меняйте назначение следующих UUID:</sys:String>
+<sys:String x:Key="GuideReturn">После установки успешно загрузите Linux, затем вернитесь в Windows, откройте «Управление установками», загрузите операцию, подтвердите загрузку Linux и проверьте систему. Затем очистите ресурсы установщика. Это не удаляет Linux и не возвращает занятые им разделы.</sys:String>
+<sys:String x:Key="GuideSaved">Персональные инструкции установки сохранены.</sys:String>
+<sys:String x:Key="InspectResources">Просмотреть ресурсы операции</sys:String>
+<sys:String x:Key="ResourcesLoaded">Ресурсы операции загружены. Проверьте их перед очисткой.</sys:String>
+<sys:String x:Key="ResourcePartition">Раздел {0}: {1} · {2:N1} ГиБ · {3} · {4}</sys:String>
+<sys:String x:Key="RetainedResource">сохранён; автоматическое удаление отключено</sys:String>
+<sys:String x:Key="OwnedResource">принадлежащий операции временный ресурс; доступен для проверенной очистки</sys:String>
+<sys:String x:Key="UnsupportedStorageDriver">Активен неподдерживаемый фильтр диска или шифрования. Изменения дисков и загрузки недоступны для этой конфигурации.</sys:String>
 </ResourceDictionary>

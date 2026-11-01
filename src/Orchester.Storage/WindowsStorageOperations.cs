@@ -19,8 +19,8 @@ $p=Get-Partition -DiskNumber $d.Number | Where-Object {([guid]$_.Guid) -eq ([gui
 if ($q.Kind -eq 'Shrink') {
  if (!$p -or $p.IsSystem -or $p.Offset -ne $q.Offset -or $p.Size -ne $q.Length -or $p.GptType -ne '{EBD0A0A2-B9E5-4433-87C0-68B6B72699C7}') {throw 'LayoutChanged'}
  $v=$p | Get-Volume
- $b=Get-BitLockerVolume -MountPoint $v.Path
- if ($v.FileSystemType -ne 'NTFS' -or $v.HealthStatus -ne 'Healthy' -or $b.VolumeStatus -ne 'FullyDecrypted' -or $b.LockStatus -eq 'Locked') {throw 'UnsafeSource'}
+ $encryption=Get-OrchesterEncryption $v
+ if ($v.FileSystemType -ne 'NTFS' -or $v.HealthStatus -ne 'Healthy' -or $encryption -ne 'Unencrypted') {throw 'UnsafeSource'}
  $s=$p | Get-PartitionSupportedSize
  if ($q.NewSize -lt $s.SizeMin -or $q.NewSize -ge $p.Size) {throw 'ShrinkLimit'}
  $p | Resize-Partition -Size $q.NewSize -Confirm:$false
@@ -94,7 +94,7 @@ if ($q.Kind -eq 'Shrink') {
         var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
         var start = new ProcessStartInfo(path) { UseShellExecute=false,CreateNoWindow=true,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true };
         start.Environment["PSModulePath"]=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","Modules");
-        foreach (var arg in new[] { "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(Script)) }) start.ArgumentList.Add(arg);
+        foreach (var arg in new[] { "-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(WindowsEncryptionQuery.Script+"\n"+Script)) }) start.ArgumentList.Add(arg);
         using var process = Process.Start(start) ?? throw new SafetyException("StorageVerificationFailed");
         var output = process.StandardOutput.ReadToEndAsync(ct); var errors = process.StandardError.ReadToEndAsync(ct);
         await process.StandardInput.WriteAsync(JsonSerializer.Serialize(command)); process.StandardInput.Close();

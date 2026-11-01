@@ -45,6 +45,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private string status="Ready",statusDetail="",distribution="",isoPath="",digest="",size="40";
  private string hdKernelPath="",hdKernelDigest="",hdInitrdPath="",hdInitrdDigest="";
  private NativeOperationSummary? selectedOperation;
+ private Guid? inspectedOperation;
  private ReleaseProfile? release;
  private DiskSnapshot? disk;
  private PartitionSnapshot? partition;
@@ -59,8 +60,9 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public ObservableCollection<MapSegment> ProposedMap { get; }=[];
  public ObservableCollection<string> Changes { get; }=[];
  public ObservableCollection<string> Operations { get; }=[];
+ public ObservableCollection<string> OperationResources {get;}=[];
  public ObservableCollection<NativeOperationSummary> NativeOperations {get;}=[];
- public NativeOperationSummary? SelectedOperation {get=>selectedOperation;set{selectedOperation=value;Changed();Changed(nameof(OperationStatus));CommandManager.InvalidateRequerySuggested();}}
+ public NativeOperationSummary? SelectedOperation {get=>selectedOperation;set{if(selectedOperation?.OperationId!=value?.OperationId){RecoveryConsent=false;LinuxBootConfirmed=false;inspectedOperation=null;OperationResources.Clear();}selectedOperation=value;Changed();Changed(nameof(OperationStatus));CommandManager.InvalidateRequerySuggested();}}
  public string OperationStatus=>SelectedOperation is null?"":(Catalog.FirstOrDefault(p=>p.Id==SelectedOperation.ProfileId)?.Distribution??SelectedOperation.ProfileId)+" · "+l[SelectedOperation.Phase.ToString()];
  public Visibility HdMediaVisibility=>Release?.Id.StartsWith("debian-",StringComparison.Ordinal)==true?Visibility.Visible:Visibility.Collapsed;
  public string HdKernelPath {get=>hdKernelPath;set{hdKernelPath=value;InvalidatePlan();Changed();}}
@@ -108,6 +110,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public Choice<PartitionSnapshot>? SelectedPartition { get=>Partitions.FirstOrDefault(p=>p.Value==partition);set {if(relabeling)return;partition=value?.Value;InvalidatePlan();Changed();} }
  public string SizeGiB { get=>size;set {size=value;InvalidatePlan();Changed();} }
  public bool Approved { get=>approved;set {approved=value;Changed();CommandManager.InvalidateRequerySuggested();} }
+ public ICommand InspectNativeCommand {get;}
  public ICommand NativePrepareCommand {get;}
  public ICommand NativeBootCommand {get;}
  public ICommand ListNativeCommand {get;}
@@ -122,6 +125,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public ICommand PrepareBundleCommand { get; }
  public ICommand VerifyBundleCommand { get; }
  public ICommand FirmwareCommand { get; }
+ public ICommand SaveGuideCommand {get;}
  public ICommand FetchChecksumCommand {get;}
  public ICommand RefreshCommand { get; }
  public ICommand VerifyCommand { get; }
@@ -145,10 +149,11 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   RestoreWindowsCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.RestoreWindowsBoot,ct)),()=>Idle&&SelectedOperation is not null&&RecoveryConsent);
   ReclaimAllocationCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.ReclaimAllocation,ct)),()=>Idle&&SelectedOperation?.Phase==OperationPhase.CANCELLED&&RecoveryConsent);
   ExportNativeCommand=new AsyncCommand(()=>Run(ExportNativeAsync),()=>Idle&&SelectedOperation is not null);
+  InspectNativeCommand=new AsyncCommand(()=>Run(InspectNativeAsync),()=>Idle&&SelectedOperation is not null);
   NativePrepareCommand=new AsyncCommand(()=>Run(PrepareNativeAsync),()=>Idle&&plan is not null&&savedOperation is not null&&StorageConsent&&BackupConfirmed);
   NativeBootCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.RequestInstallerBoot,ct)),()=>Idle&&SelectedOperation?.Phase==OperationPhase.BOOT_CONFIGURED);
   ListNativeCommand=new AsyncCommand(()=>Run(ListNativeAsync),()=>Idle);
-  CleanupNativeCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.CleanupOperation,ct)),()=>Idle&&SelectedOperation is not null);
+  CleanupNativeCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.CleanupOperation,ct)),()=>Idle&&SelectedOperation is not null&&inspectedOperation==SelectedOperation.OperationId);
   CompleteNativeCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.CompleteInstallation,ct)),()=>Idle&&SelectedOperation is not null&&LinuxBootConfirmed);
   AbortRestartCommand=new AsyncCommand(()=>Run(_=>{System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","shutdown.exe")){UseShellExecute=false,ArgumentList={"/a"}});SetStatus("RestartCancelled");return Task.CompletedTask;}),()=>Idle);
   RestartCommand=new AsyncCommand(()=>Run(_=>{System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","shutdown.exe")){UseShellExecute=false,ArgumentList={"/r","/t","15"}});SetStatus("RestartScheduled");return Task.CompletedTask;}),()=>Idle&&SelectedOperation?.Phase==OperationPhase.REBOOT_REQUESTED);
@@ -156,6 +161,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   PrepareBundleCommand=new AsyncCommand(()=>Run(PrepareBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
   VerifyBundleCommand=new AsyncCommand(()=>Run(VerifyBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
   FirmwareCommand=new AsyncCommand(()=>Run(InspectFirmwareAsync),()=>Idle);
+  SaveGuideCommand=new AsyncCommand(()=>Run(SaveGuideAsync),()=>Idle&&(plan is not null||SelectedOperation is not null));
   FetchChecksumCommand=new AsyncCommand(()=>Run(async ct=> {
    var reference=await PublisherChecksums.FetchAsync(Release??throw new SafetyException("AdapterMismatch"),ct);
    Digest=reference.Sha256;DigestTrusted=reference.AuthenticatedPublisherOrigin;SetStatus(reference.AuthenticatedPublisherOrigin?"PublisherChecksumLoaded":"MirrorChecksumLoaded");
@@ -167,7 +173,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   PlanCommand=new AsyncCommand(()=>Run(CreatePlanAsync),()=>Idle);
   SavePlanCommand=new AsyncCommand(()=>Run(SavePlanAsync),()=>Idle&&Approved&&plan is not null&&savedOperation is null);
   BackCommand=new AsyncCommand(()=> {Stage--;return Task.CompletedTask;},()=>Idle&&!operationPrepared&&Stage>0);
-  NextCommand=new AsyncCommand(()=>Run(AdvanceAsync),()=>Idle&&Stage<6);
+  NextCommand=new AsyncCommand(()=>Run(AdvanceAsync),()=>Idle&&Stage<6&&(Stage!=5||SelectedOperation?.Phase==OperationPhase.BOOT_CONFIGURED));
   CancelCommand=new AsyncCommand(CancelAsync,()=>!nativePreparing&&(Busy || savedOperation is not null));
   InspectCommand=new AsyncCommand(()=>Run(InspectAsync),()=>Idle);
   ExportCommand=new AsyncCommand(()=>Run(ExportAsync),()=>Idle);
@@ -184,7 +190,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   finally {active.Dispose();active=null;Busy=false;}
  }
  private void SetStatus(string code,string detail="") {status=code;statusDetail=detail;Changed(nameof(Status));}
- private void InvalidatePlan() {plan=null;approvedFingerprint=null;Approved=false;savedOperation=null;Changes.Clear();ProposedMap.Clear();}
+ private void InvalidatePlan() {if(!operationPrepared)SelectedOperation=null;StorageConsent=false;BackupConfirmed=false;plan=null;approvedFingerprint=null;Approved=false;savedOperation=null;Changes.Clear();ProposedMap.Clear();}
  private async Task RefreshAsync(CancellationToken ct) {
   elevatedStorage=false;InvalidatePlan();host=inspectHost();Changed(nameof(HostText));
   var disks=await storage.DiscoverAsync(ct);Disks.Clear();
@@ -258,6 +264,30 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   Operations.Clear();foreach(var record in operationRecords)Operations.Add(string.Format(l["SavedOperation"],record.OperationId,l[record.Phase.ToString()],l[record.DryRun?"DryRun":"Unverified"]));
   if(Operations.Count==0)Operations.Add(l["NoOperations"]);
  }
+ private async Task SaveGuideAsync(CancellationToken ct) {
+  InstallationPlan? selected=plan;
+  if(selected is null&&SelectedOperation is not null) {
+   var response=await ElevatedDiagnostics.SendAsync(new(1,SelectedOperation.OperationId,"",DiagnosticCommand.InspectOperation,null,null),ct);
+   if(!response.Success)throw new SafetyException(response.ErrorCode??"UnexpectedError");
+   selected=response.Data?.Deserialize<NativeOperationState>()?.Plan;
+  }
+  var current=selected??throw new SafetyException("PlanRequired");
+  var dialog=new SaveFileDialog {Filter="Text (*.txt)|*.txt",FileName="ORCHESTER-installation-guide.txt"};if(dialog.ShowDialog()!=true)return;
+  var reserved=current.Changes.Single(c=>c.Kind=="ReserveLinux");
+  var lines=new List<string>{"ORCHESTER",l["InstallGuideHeading"],string.Format(l["GuideDisk"],current.OriginalDisk.Name,current.OriginalDisk.Capacity/1073741824d,current.OriginalDisk.StableId),string.Format(l["GuideRange"],reserved.Offset/1048576d,(reserved.Offset+reserved.Length)/1048576d,reserved.Length/1073741824d),l["GuideInstructions"],l["GuidePreserve"]};
+  foreach(var p in current.OriginalDisk.Partitions)lines.Add($"#{p.Number}: {p.Id:D} · {p.FileSystem} · {p.Length/1073741824d:N1} GiB");
+  lines.Add(l["GuideReturn"]);await File.WriteAllLinesAsync(dialog.FileName,lines,ct);SetStatus("GuideSaved");
+ }
+ private async Task InspectNativeAsync(CancellationToken ct) {
+  var selected=SelectedOperation??throw new SafetyException("PlanRequired");
+  var result=await ElevatedDiagnostics.SendAsync(new(1,selected.OperationId,"",DiagnosticCommand.InspectOperation,null,null),ct);
+  if(!result.Success)throw new SafetyException(result.ErrorCode??"UnexpectedError");
+  var state=result.Data?.Deserialize<NativeOperationState>()??throw new SafetyException("JournalIncomplete");
+  OperationResources.Clear();OperationResources.Add(l[state.Phase.ToString()]);
+  foreach(var p in state.Partitions)OperationResources.Add(string.Format(l["ResourcePartition"],p.Number,p.PartitionId,p.Length/1073741824d,p.FileSystem,state.RetainedPartitions.Contains(p.PartitionId)?l["RetainedResource"]:l["OwnedResource"]));
+  if(state.Boot is not null)OperationResources.Add($"Boot{state.Boot.Number:X4}: {state.Boot.EfiPath}");
+  inspectedOperation=selected.OperationId;CommandManager.InvalidateRequerySuggested();SetStatus("ResourcesLoaded");
+ }
  private async Task PrepareNativeAsync(CancellationToken ct) {
   var current=plan??throw new SafetyException("PlanRequired");
   if(!StorageConsent||!BackupConfirmed)throw new SafetyException("AuthorizationRequired");
@@ -296,7 +326,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
    else if(command==DiagnosticCommand.ReclaimAllocation)SetStatus("AllocationRestored");
    else {operationPrepared=false;SelectedOperation=selected with {Phase=selected.Phase==OperationPhase.COMPLETED?OperationPhase.COMPLETED:OperationPhase.CANCELLED,CanRequestBoot=false,CanCleanup=false};SetStatus("CleanupFinished");}
    Changed(nameof(SelectedOperation));CommandManager.InvalidateRequerySuggested();
-  } finally {nativePreparing=false;CommandManager.InvalidateRequerySuggested();}
+  } finally {nativePreparing=false;RecoveryConsent=false;CommandManager.InvalidateRequerySuggested();}
  }
  private async Task InspectElevatedStorageAsync(CancellationToken ct) {
   var result=await ElevatedDiagnostics.InspectAsync(DiagnosticCommand.InspectStorage,ct);

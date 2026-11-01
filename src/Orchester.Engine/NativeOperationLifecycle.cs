@@ -14,9 +14,13 @@ public sealed class NativeOperationLifecycle(PrivilegedOperationStore store) {
     private readonly InstallerPartitionStorage storage=new(new WindowsStorageDiscovery(false));
     private async Task<NativeOperationState> EnsureMounted(NativeOperationState state,CancellationToken ct) {
         var disk=await storage.ReadAsync(state.Plan,ct);
-        foreach(var owned in state.Partitions) {
+        foreach(var originalOwnership in state.Partitions.ToArray()) {
+            var owned=originalOwnership;
             InstallerPartitionStorage.ValidateOwned(state.Plan,owned,disk);
             var part=disk.Partitions.Single(p=>p.Id==owned.PartitionId);
+            if(owned.FileSystem=="RAW"&&part.FileSystem is "FAT32" or "NTFS") {
+                owned=owned with {FileSystem=part.FileSystem};state=state with {Partitions=state.Partitions.Replace(originalOwnership,owned)};await store.SaveAsync(state,ct);
+            }
             var recorded=state.Mounts.FirstOrDefault(m=>m.PartitionId==owned.PartitionId);
             if(recorded is not null&&part.MountPoint+":\\"==recorded.DriveRoot)continue;
             if(!string.IsNullOrEmpty(part.MountPoint))throw new SafetyException("OwnershipMismatch");
@@ -96,6 +100,8 @@ public sealed class NativeOperationLifecycle(PrivilegedOperationStore store) {
                 var profile=Orchester.Images.CatalogService.LoadBuiltin().Single(p=>p.Id==state.Plan.ProfileId);
                 var expected=profile.Version.Split(' ')[0].Split('.');var actual=os.Version.Split('.');int pieces=family=="debian"?1:Math.Min(2,expected.Length);
                 if(os.Id!=family||!boot||actual.Length<pieces||!expected.Take(pieces).SequenceEqual(actual.Take(pieces)))continue;
+                var unchanged=await storage.ReadAsync(state.Plan,ct);
+                if(!unchanged.Partitions.Any(p=>p.Id==partition.Id&&p.Offset==partition.Offset&&p.Length==partition.Length))throw new SafetyException("DiskChanged");
                 var completion=new NativeCompletion(state.Plan.OperationId,partition.Id,os.Id,os.Version,DateTimeOffset.UtcNow,true,true,null);
                 string path=Path.Combine(store.Folder(state.Plan.OperationId),"completion.json");
                 using(var file=new FileStream(path,FileMode.Create,FileAccess.Write,FileShare.None,4096,FileOptions.WriteThrough)){await JsonSerializer.SerializeAsync(file,completion,cancellationToken:ct);file.Flush(true);}

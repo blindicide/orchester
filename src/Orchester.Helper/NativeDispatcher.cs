@@ -16,7 +16,7 @@ internal static class NativeDispatcher {
     [DllImport("kernel32.dll",SetLastError=true)][return:MarshalAs(UnmanagedType.Bool)]private static extern bool GetNamedPipeClientProcessId(SafePipeHandle pipe,out uint id);
     public static async Task<object> ExecuteAsync(DiagnosticRequest message,NamedPipeServerStream pipe,CancellationToken ct) {
         VerifyCaller(pipe);
-        var store=new PrivilegedOperationStore();
+        var store=new PrivilegedOperationStore(NativePeer.OwnerSid(NativePeer.ProcessId(pipe)));
         if(message.Command==DiagnosticCommand.ListOperations)return await store.ListAsync(ct);
         if(message.Command==DiagnosticCommand.InspectOperation)return await store.LoadAsync(message.OperationId,ct);
         if(message.Command==DiagnosticCommand.ExportOperation) {
@@ -33,6 +33,7 @@ internal static class NativeDispatcher {
             var profile=CatalogService.LoadBuiltin().SingleOrDefault(p=>p.Id==plan.ProfileId)??throw new SafetyException("AdapterMismatch");
             var host=HostInspector.Inspect();DistributionAdapter.For(profile).ValidateHost(host,profile);
             if(plan.DryRun||!NativeLayout.ForExecution(plan).Changes.SequenceEqual(plan.Changes))throw new SafetyException("PlanChanged");
+            WindowsStoragePolicy.RequireSupportedStack();
             using var permit=ReleaseGate.Authorize(plan.OperationId);
             var current=(await new WindowsStorageDiscovery().DiscoverAsync(ct)).SingleOrDefault(d=>d.Number==plan.OriginalDisk.Number)??throw new SafetyException("DiskChanged");
             PlanGuard.Validate(plan,current,request.Fingerprint,true);
@@ -62,6 +63,7 @@ internal static class NativeDispatcher {
         var existing=await store.LoadAsync(message.OperationId,ct);
         using var diskControl=store.LockDisk(existing.Plan.OriginalDisk.StableId);
         using var control=store.Lock(message.OperationId);
+        WindowsStoragePolicy.RequireSupportedStack();
         using var authorization=ReleaseGate.Authorize(message.OperationId);
         switch(message.Command) {
             case DiagnosticCommand.RequestInstallerBoot:

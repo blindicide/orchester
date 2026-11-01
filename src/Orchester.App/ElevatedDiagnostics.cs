@@ -18,7 +18,7 @@ public static class ElevatedDiagnostics {
         string nonce = HelperProtocol.NewNonce();
         var start = new ProcessStartInfo(helper) { UseShellExecute=true, Verb="runas", WindowStyle=ProcessWindowStyle.Hidden };
         // Validated fixed-shape arguments; no shell command or executable path is accepted from the UI.
-        start.ArgumentList.Add("--pipe"); start.ArgumentList.Add(pipe); start.ArgumentList.Add("--nonce"); start.ArgumentList.Add(nonce);
+        start.ArgumentList.Add("--pipe"); start.ArgumentList.Add(pipe); start.ArgumentList.Add("--nonce"); start.ArgumentList.Add(nonce);start.ArgumentList.Add("--client");start.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Process? process;
         try {
             lock(LaunchLock) {

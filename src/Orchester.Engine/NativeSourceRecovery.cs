@@ -25,8 +25,10 @@ if($d.UniqueId -cne $q.Identity -or $d.PartitionStyle -ne 'GPT' -or $d.IsReadOnl
 $p=Get-Partition -DiskNumber $q.Disk|Where-Object {([guid]$_.Guid) -eq ([guid]$q.Partition)}
 if(!$p -or $p.Offset -ne $q.Offset -or $p.Size -ne $q.Current){throw 'LayoutChanged'}
 foreach($other in @(Get-Partition -DiskNumber $q.Disk)){if($other.PartitionNumber -ne $p.PartitionNumber -and $other.Offset -lt ($q.Offset+$q.Original) -and ($other.Offset+$other.Size) -gt ($q.Offset+$q.Current)){throw 'LayoutChanged'}}
-$v=$p|Get-Volume;$b=Get-BitLockerVolume -MountPoint $v.Path
-if($v.FileSystemType -ne 'NTFS' -or $v.HealthStatus -ne 'Healthy' -or $b.VolumeStatus -ne 'FullyDecrypted'){throw 'UnsafeSource'}
+$v=$p|Get-Volume
+$b=Get-CimInstance -Namespace root/CIMV2/Security/MicrosoftVolumeEncryption -ClassName Win32_EncryptableVolume|Where-Object {$_.DriveLetter -eq (([string]$v.DriveLetter)+':')}
+$status=Invoke-CimMethod -InputObject $b -MethodName GetConversionStatus
+if($v.FileSystemType -ne 'NTFS' -or $v.HealthStatus -ne 'Healthy' -or $status.ReturnValue -ne 0 -or $status.ConversionStatus -ne 0){throw 'UnsafeSource'}
 $s=$p|Get-PartitionSupportedSize
 if($s.SizeMax -lt $q.Original){throw 'ShrinkLimit'}
 $p|Resize-Partition -Size $q.Original -Confirm:$false

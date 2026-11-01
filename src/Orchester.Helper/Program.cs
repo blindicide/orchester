@@ -12,23 +12,24 @@ using Orchester.Storage;
 if(args.Length==1&&args[0]=="--can-uninstall") {
  try {
   var operations=new Orchester.Engine.PrivilegedOperationStore();
-  foreach(var row in await operations.ListAsync(CancellationToken.None)) {
-   var state=await operations.LoadAsync(row.OperationId,CancellationToken.None);
-   if(state.Boot is not null||state.Mounts.Length>0||state.Partitions.Any(p=>!state.RetainedPartitions.Contains(p.PartitionId)))return 3;
-  }
+  if(!await operations.CanUninstallAsync(CancellationToken.None))return 3;
   return 0;
  }catch{return 3;}
 }
-if (args.Length != 4 || args[0] != "--pipe" || args[2] != "--nonce" ||
+if (args.Length is not (4 or 6) || args[0] != "--pipe" || args[2] != "--nonce" ||
     !Regex.IsMatch(args[1], @"\AOrchester-[A-F0-9]{32}\z") || !Regex.IsMatch(args[3], @"\A[A-F0-9]{64}\z")) return 2;
+int expectedClient=0;
+if(args.Length==6&&(args[4]!="--client"||!int.TryParse(args[5],out expectedClient)||expectedClient<=0))return 2;
 using var timeout = new CancellationTokenSource(TimeSpan.FromHours(3));
 try {
     var sid = WindowsIdentity.GetCurrent().User ?? throw new SafetyException("UnauthorizedRequest");
     var security = new PipeSecurity(); security.SetAccessRuleProtection(true, false); security.SetOwner(sid);
     security.AddAccessRule(new PipeAccessRule(sid, PipeAccessRights.FullControl, AccessControlType.Allow));
+    if(expectedClient>0)security.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(NativePeer.OwnerSid(expectedClient)),PipeAccessRights.ReadWrite,AccessControlType.Allow));
     using var pipe = NamedPipeServerStreamAcl.Create(args[1], PipeDirection.InOut, 1, PipeTransmissionMode.Byte,
         PipeOptions.Asynchronous, 4096, 4096, security);
     await pipe.WaitForConnectionAsync(timeout.Token);
+    if(expectedClient>0&&NativePeer.ProcessId(pipe)!=expectedClient)throw new SafetyException("UnauthorizedRequest");
     var request = await HelperProtocol.ReadAsync<DiagnosticRequest>(pipe, timeout.Token);
     DiagnosticResponse response;
     try {

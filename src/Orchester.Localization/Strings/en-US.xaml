@@ -41,14 +41,14 @@
 <sys:String x:Key="CurrentLayout">Existing layout</sys:String>
 <sys:String x:Key="ProposedLayout">Proposed layout · not applied</sys:String>
 <sys:String x:Key="ReviewWarning">Shrinking NTFS is conditionally reversible and can cause data loss. Back up important data. No storage changes are made by this preview.</sys:String>
-<sys:String x:Key="Approve">I reviewed this exact plan and authorize saving its dry-run record.</sys:String>
-<sys:String x:Key="SavePlan">Save dry-run operation</sys:String>
-<sys:String x:Key="DryRunSaved">Dry-run manifest and durable journal saved. No partitions or boot entries were changed.</sys:String>
+<sys:String x:Key="Approve">I reviewed this exact plan and authorize saving it.</sys:String>
+<sys:String x:Key="SavePlan">Save approved plan</sys:String>
+<sys:String x:Key="DryRunSaved">The approved plan and journal are stored. Preparation and recovery status is shown below.</sys:String>
 <sys:String x:Key="RestartBlocked">Installer handoff is unavailable until boot, storage, and distribution profiles pass disposable VM tests. This operation remains pending; a reboot does not prove installation success.</sys:String>
 <sys:String x:Key="Inspect">Inspect operation journals</sys:String>
 <sys:String x:Key="Export">Export redacted diagnostics…</sys:String>
 <sys:String x:Key="Exported">Redacted diagnostics exported.</sys:String>
-<sys:String x:Key="RecoveryHelp">Interrupted or inconsistent records require investigation. Cleanup is limited to verified ORCHESTER ownership; automatic cleanup and boot repair are gated in this release.</sys:String>
+<sys:String x:Key="RecoveryHelp">Select an operation and inspect its resources before cleanup. Resources used by an installed bootloader or containing foreign files are retained. Boot restoration and allocation recovery need separate consent.</sys:String>
 <sys:String x:Key="ManagementHelp">Known operation metadata is shown below. A saved plan is not evidence of an installed Linux system. Removal and partition reclamation are not available.</sys:String>
 <sys:String x:Key="NoOperations">No saved operations.</sys:String>
 <sys:String x:Key="DiskSummary">Disk {0}: {1} · {2:N1} GiB · {3} · {4}</sys:String>
@@ -78,7 +78,7 @@
 <sys:String x:Key="Ready">Ready.</sys:String>
 <sys:String x:Key="Busy">Working…</sys:String>
 <sys:String x:Key="Cancelled">Operation cancelled. Partial downloads are retained for resume.</sys:String>
-<sys:String x:Key="UnexpectedError">The operation failed. Inspect recovery diagnostics; no disk writes were performed.</sys:String>
+<sys:String x:Key="UnexpectedError">The operation failed. Inspect recovery and operation records before retrying.</sys:String>
 <sys:String x:Key="PlanChanged">The approved plan changed. Review it again.</sys:String>
 <sys:String x:Key="DiskChanged">Disk identity changed. Refresh storage.</sys:String>
 <sys:String x:Key="LayoutChanged">Disk metadata changed. Create a new plan.</sys:String>
@@ -241,4 +241,18 @@
 <sys:String x:Key="ChecksumMetadataInvalid">The published checksum list is missing, ambiguous, or does not identify this exact image.</sys:String>
 <sys:String x:Key="DownloadRedirectInvalid">The server returned an invalid or excessive download redirect.</sys:String>
 <sys:String x:Key="BootBackupIncompatible">The saved boot configuration belongs to a different Windows build. Use guided Windows recovery instead.</sys:String>
+<sys:String x:Key="SaveGuide">Save personalized installation guide</sys:String>
+<sys:String x:Key="InstallGuideHeading">Guided installation: identify the intended disk and preserve every original partition below.</sys:String>
+<sys:String x:Key="GuideDisk">Target model: {0}; capacity: {1:N1} GiB; Windows stable identity: {2}. Windows disk numbers do not identify Linux device names.</sys:String>
+<sys:String x:Key="GuideRange">Reserved Linux region: {0:N0}–{1:N0} MiB from the beginning of the disk ({2:N1} GiB).</sys:String>
+<sys:String x:Key="GuideInstructions">Choose manual/custom partitioning in the native installer. Match the disk by model, capacity and partition UUIDs; lsblk -o NAME,SIZE,MODEL,SERIAL,PARTUUID can help. Create an ext4 root partition mounted at / only inside the reserved region. Keep the installer data partition intact. Use the newly created 512 MiB FAT32 EFI partition for /boot/efi without reformatting it. ORCHESTER preserves that partition if the installed Linux bootloader uses it. Avoid encrypted/LVM roots if automatic read-back verification is required.</sys:String>
+<sys:String x:Key="GuidePreserve">Original partitions: do not format, remove or repurpose any of these UUIDs:</sys:String>
+<sys:String x:Key="GuideReturn">After installation, boot Linux successfully, then return to Windows, open Manage installations, load the operation, confirm the Linux boot and verify the installed system. Clean up owned installer resources afterward. This does not remove Linux or automatically reclaim its partitions.</sys:String>
+<sys:String x:Key="GuideSaved">Personalized installation guide saved.</sys:String>
+<sys:String x:Key="InspectResources">Inspect operation resources</sys:String>
+<sys:String x:Key="ResourcesLoaded">Operation resources loaded. Review them before cleanup.</sys:String>
+<sys:String x:Key="ResourcePartition">Partition {0}: {1} · {2:N1} GiB · {3} · {4}</sys:String>
+<sys:String x:Key="RetainedResource">retained; automatic deletion disabled</sys:String>
+<sys:String x:Key="OwnedResource">owned temporary resource; eligible for verified cleanup</sys:String>
+<sys:String x:Key="UnsupportedStorageDriver">An unsupported storage or encryption filter is active. Disk and boot modifications are unavailable on this configuration.</sys:String>
 </ResourceDictionary>
