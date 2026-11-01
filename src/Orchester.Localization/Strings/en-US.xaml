@@ -24,7 +24,7 @@
 <sys:String x:Key="LocalIso">Local ISO path</sys:String>
 <sys:String x:Key="Browse">Import ISO…</sys:String>
 <sys:String x:Key="Digest">Expected SHA-256 (64 hexadecimal characters)</sys:String>
-<sys:String x:Key="DigestTrust">I authenticated this digest through a signed publisher checksum or an independent trusted channel.</sys:String>
+<sys:String x:Key="DigestTrust">I authenticated this digest through the official HTTPS origin, a signed publisher checksum, or an independent trusted channel.</sys:String>
 <sys:String x:Key="DigestHelp">A checksum downloaded with an image proves integrity only. Authenticate the publisher’s checksum before confirming its trust.</sys:String>
 <sys:String x:Key="Verify">Verify and inspect ISO</sys:String>
 <sys:String x:Key="Download">Download and verify</sys:String>
@@ -210,7 +210,7 @@
 <sys:String x:Key="BackupConfirmed">I have backed up important files and have access to my recovery information.</sys:String>
 <sys:String x:Key="PrepareNative">Prepare installation (administrator consent)</sys:String>
 <sys:String x:Key="NativePrepared">Installer files and temporary boot entry are prepared. Review the guidance before requesting one-time boot.</sys:String>
-<sys:String x:Key="OneTimeBootHelp">Request one-time installer boot, then restart. In the native installer use the reserved Linux space; preserve Windows and the installer partitions. After installation, boot both systems and return here for verification and cleanup. Direct ext4 layouts can be identified automatically; encrypted and LVM roots may remain pending.</sys:String>
+<sys:String x:Key="OneTimeBootHelp">Request one-time installer boot, then restart. In the native installer use the reserved Linux space; preserve Windows and the installer partitions. After installation, boot both systems and return here for verification and cleanup. Direct ext4 layouts can be identified automatically; encrypted and LVM roots may remain pending. Save all open work before restarting; Windows may close applications when the countdown expires.</sys:String>
 <sys:String x:Key="ConfigureOneTimeBoot">Request one-time installer boot</sys:String>
 <sys:String x:Key="OneTimeBootReady">One-time boot is selected. Windows will restart into the installer when you choose Restart.</sys:String>
 <sys:String x:Key="RestartWindows">Restart in 15 seconds</sys:String>

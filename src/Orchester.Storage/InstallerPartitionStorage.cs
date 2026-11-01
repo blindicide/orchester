@@ -50,7 +50,7 @@ $v=$p|Get-Volume -ErrorAction SilentlyContinue
     private sealed record Result(Guid Id,int Number,string Root,string FileSystem);
     public async Task<DiskSnapshot> ReadAsync(InstallationPlan plan,CancellationToken ct) {
         var disk=(await discovery.DiscoverAsync(ct)).SingleOrDefault(d=>d.Number==plan.OriginalDisk.Number)??throw new SafetyException("DiskChanged");
-        if(disk.StableId!=plan.OriginalDisk.StableId||disk.Capacity!=plan.OriginalDisk.Capacity)throw new SafetyException("DiskChanged");
+        if(disk.StableId!=plan.OriginalDisk.StableId||disk.Capacity!=plan.OriginalDisk.Capacity||disk.LogicalSector!=plan.OriginalDisk.LogicalSector||disk.PhysicalSector!=plan.OriginalDisk.PhysicalSector)throw new SafetyException("DiskChanged");
         PlanGuard.ValidateDisk(disk);return disk;
     }
     public async Task<OwnedPartition> CreateAsync(InstallationPlan plan,string role,IReadOnlyCollection<OwnedPartition> known,CancellationToken ct) {
@@ -119,8 +119,8 @@ $v=$p|Get-Volume -ErrorAction SilentlyContinue
         using var process=Process.Start(start)??throw new SafetyException("StorageVerificationFailed");
         var output=process.StandardOutput.ReadToEndAsync();var error=process.StandardError.ReadToEndAsync();
         await process.StandardInput.WriteAsync(JsonSerializer.Serialize(command));process.StandardInput.Close();
-        await process.WaitForExitAsync(CancellationToken.None);string json=await output;await error;
-        if(process.ExitCode!=0)throw new SafetyException("StorageVerificationFailed");
+        await process.WaitForExitAsync(CancellationToken.None);string json=await output;string nativeError=await error;
+        if(process.ExitCode!=0)throw new NativeCommandException("Storage",command.Kind,process.ExitCode,nativeError);
         if(command.Kind=="Delete")return new(Guid.Empty,0,"","");
         return JsonSerializer.Deserialize<Result>(json)??throw new SafetyException("StorageVerificationFailed");
     }

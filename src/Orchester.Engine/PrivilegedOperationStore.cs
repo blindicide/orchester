@@ -74,6 +74,12 @@ public sealed class PrivilegedOperationStore {
         if(state.SchemaVersion!=1||state.Plan.OperationId!=id||state.OwnerSid!=ownerSid)throw new SafetyException("UnauthorizedRequest");
         return state;
     }
+    public async Task RecordErrorAsync(Guid id,NativeCommandException error,CancellationToken ct) {
+        await LoadAsync(id,ct);
+        using var file=new FileStream(Path.Combine(Folder(id),"native-errors.jsonl"),FileMode.Append,FileAccess.Write,FileShare.Read,4096,FileOptions.WriteThrough);
+        await JsonSerializer.SerializeAsync(file,new{Timestamp=DateTimeOffset.UtcNow,Operation=id,error.Component,error.Action,error.ExitCode,error.Diagnostic},cancellationToken:ct);
+        await file.WriteAsync(new byte[]{10},ct);file.Flush(true);
+    }
     public FileStream Lock(Guid id)=>new(Path.Combine(Folder(id),"control.lock"),FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);
     public async Task<bool> CanUninstallAsync(CancellationToken ct) {
         foreach(string folder in Directory.EnumerateDirectories(Root)) {

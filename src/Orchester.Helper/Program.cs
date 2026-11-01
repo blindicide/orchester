@@ -63,6 +63,9 @@ try {
             default: throw new SafetyException("UnauthorizedRequest");
         }
         response = new(1, request.OperationId, true, null, JsonSerializer.SerializeToElement(data));
+    } catch (NativeCommandException e) {
+        try {await new Orchester.Engine.PrivilegedOperationStore(NativePeer.OwnerSid(NativePeer.ProcessId(pipe))).RecordErrorAsync(request.OperationId,e,CancellationToken.None);}catch(Exception logging)when(logging is IOException or SafetyException or UnauthorizedAccessException){ }
+        response=new(1,request.OperationId,false,e.Component=="Boot"?"BootVerificationFailed":"StorageVerificationFailed",null);
     } catch (SafetyException e) { response = new(1, request.OperationId, false, e.Code, null); }
       catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or JsonException or CryptographicException or ArgumentException) { response = new(1, request.OperationId, false, "UnexpectedError", null); }
     await HelperProtocol.WriteAsync(pipe, response, timeout.Token);

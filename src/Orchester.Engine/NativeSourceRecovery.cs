@@ -40,8 +40,8 @@ $p|Resize-Partition -Size $q.Original -Confirm:$false
         using var process=Process.Start(start)??throw new SafetyException("StorageVerificationFailed");
         var output=process.StandardOutput.ReadToEndAsync();var error=process.StandardError.ReadToEndAsync();
         await process.StandardInput.WriteAsync(JsonSerializer.Serialize(new{Disk=disk.Number,Identity=disk.StableId,Partition=source.Id,Offset=source.Offset,Current=source.Length,Original=original.Length}));process.StandardInput.Close();
-        await process.WaitForExitAsync(CancellationToken.None);await output;await error;
-        if(process.ExitCode!=0){await Log(journal,plan.OperationId,"RestoreAllocation","UNKNOWN");throw new SafetyException("StorageVerificationFailed");}
+        await process.WaitForExitAsync(CancellationToken.None);await output;string nativeError=await error;
+        if(process.ExitCode!=0){await Log(journal,plan.OperationId,"RestoreAllocation","UNKNOWN");throw new NativeCommandException("Storage","RestoreAllocation",process.ExitCode,nativeError);}
         var after=(await new WindowsStorageDiscovery(false).DiscoverAsync(CancellationToken.None)).Single(d=>d.Number==disk.Number);
         if(after.StableId!=disk.StableId||after.Partitions.Single(p=>p.Id==source.Id).Length!=original.Length)throw new SafetyException("StorageVerificationFailed");
         await Log(journal,plan.OperationId,"RestoreAllocation","VERIFIED");

@@ -33,3 +33,11 @@ public interface IInstallationAdapter {
  string GenerateUnattendedConfiguration(ReleaseProfile profile);
  string GetRecoveryInstructions();
 }
+
+// Raw native diagnostics remain in the protected local operation folder, never the UI/export.
+public sealed class NativeCommandException(string component,string action,int exitCode,string diagnostic) : IOException("NativeCommandFailed") {
+ public string Component {get;}=component;
+ public string Action {get;}=action;
+ public int ExitCode {get;}=exitCode;
+ public string Diagnostic {get;}=diagnostic.Length>16384?diagnostic[..16384]:diagnostic;
+}

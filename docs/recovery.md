@@ -28,4 +28,6 @@ Run cleanup only after the installer has stopped using its source. Installed boo
 
 ORCHESTER never disables Secure Boot, routinely decrypts a disk or stores recovery keys. Encrypted/locked/unknown source volumes are refused. Preserve recovery-key access independently.
 
+Native Windows command failures are retained in the protected local `native-errors.jsonl` with component, action, exit code and bounded Windows error output. This local file may contain paths; the shared export excludes it.
+
 Use **Export operation diagnostics** for sharing. Full local manifests contain identities and paths. The uninstaller refuses active preparation and preserves operation records, installed systems and downloaded images.

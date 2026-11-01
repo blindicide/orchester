@@ -60,8 +60,8 @@ public static class WindowsBootBackup {
         var start=new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","bcdedit.exe")){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
         start.ArgumentList.Add(action);start.ArgumentList.Add(file);
         using var process=Process.Start(start)??throw new SafetyException("BootVerificationFailed");
-        var output=process.StandardOutput.ReadToEndAsync();var error=process.StandardError.ReadToEndAsync();await process.WaitForExitAsync(CancellationToken.None);await output;await error;
-        if(process.ExitCode!=0)throw new SafetyException("BootVerificationFailed");
+        var output=process.StandardOutput.ReadToEndAsync();var error=process.StandardError.ReadToEndAsync();await process.WaitForExitAsync(CancellationToken.None);await output;string nativeError=await error;
+        if(process.ExitCode!=0)throw new NativeCommandException("Boot",action,process.ExitCode,nativeError);
         if(action=="/export")using(var saved=new FileStream(file,FileMode.Open,FileAccess.ReadWrite,FileShare.Read)){saved.Flush(true);}
     }
 }

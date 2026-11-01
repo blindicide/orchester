@@ -99,7 +99,7 @@ if ($q.Kind -eq 'Shrink') {
         var output = process.StandardOutput.ReadToEndAsync(ct); var errors = process.StandardError.ReadToEndAsync(ct);
         await process.StandardInput.WriteAsync(JsonSerializer.Serialize(command)); process.StandardInput.Close();
         // Do not kill a filesystem resize once started. Wait for a definite result or external recovery.
-        await process.WaitForExitAsync(CancellationToken.None); await output; await errors;
-        if (process.ExitCode != 0) throw new SafetyException("StorageVerificationFailed");
+        await process.WaitForExitAsync(CancellationToken.None); await output; string nativeError=await errors;
+        if (process.ExitCode != 0) throw new NativeCommandException("Storage",command.Kind,process.ExitCode,nativeError);
     }
 }
