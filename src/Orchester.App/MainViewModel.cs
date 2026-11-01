@@ -40,9 +40,11 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private VerifiedImage? image;
  private HostSnapshot? host;
  private int stage,section;
- private bool busy,approved,digestTrusted,relabeling,elevatedStorage;
+ private bool busy,approved,digestTrusted,relabeling,elevatedStorage,nativePreparing,storageConsent,backupConfirmed,linuxBootConfirmed;
  private ImmutableArray<RecoveryRecord> operationRecords=[];
  private string status="Ready",statusDetail="",distribution="",isoPath="",digest="",size="40";
+ private string hdKernelPath="",hdKernelDigest="",hdInitrdPath="",hdInitrdDigest="";
+ private NativeOperationSummary? selectedOperation;
  private ReleaseProfile? release;
  private DiskSnapshot? disk;
  private PartitionSnapshot? partition;
@@ -57,6 +59,18 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public ObservableCollection<MapSegment> ProposedMap { get; }=[];
  public ObservableCollection<string> Changes { get; }=[];
  public ObservableCollection<string> Operations { get; }=[];
+ public ObservableCollection<NativeOperationSummary> NativeOperations {get;}=[];
+ public NativeOperationSummary? SelectedOperation {get=>selectedOperation;set{selectedOperation=value;Changed();Changed(nameof(OperationStatus));CommandManager.InvalidateRequerySuggested();}}
+ public string OperationStatus=>SelectedOperation is null?"":(Catalog.FirstOrDefault(p=>p.Id==SelectedOperation.ProfileId)?.Distribution??SelectedOperation.ProfileId)+" · "+l[SelectedOperation.Phase.ToString()];
+ public Visibility HdMediaVisibility=>Release?.Id.StartsWith("debian-",StringComparison.Ordinal)==true?Visibility.Visible:Visibility.Collapsed;
+ public string HdKernelPath {get=>hdKernelPath;set{hdKernelPath=value;InvalidatePlan();Changed();}}
+ public string HdKernelDigest {get=>hdKernelDigest;set{hdKernelDigest=value.Trim();InvalidatePlan();Changed();}}
+ public string HdInitrdPath {get=>hdInitrdPath;set{hdInitrdPath=value;InvalidatePlan();Changed();}}
+ public string HdInitrdDigest {get=>hdInitrdDigest;set{hdInitrdDigest=value.Trim();InvalidatePlan();Changed();}}
+ public string ReleaseStatus=>l[Release?.Validated==true?"QualifiedRelease":"PendingRelease"];
+ public bool StorageConsent {get=>storageConsent;set{storageConsent=value;Changed();CommandManager.InvalidateRequerySuggested();}}
+ public bool BackupConfirmed {get=>backupConfirmed;set{backupConfirmed=value;Changed();CommandManager.InvalidateRequerySuggested();}}
+ public bool LinuxBootConfirmed {get=>linuxBootConfirmed;set{linuxBootConfirmed=value;Changed();CommandManager.InvalidateRequerySuggested();}}
  public ObservableCollection<string> FirmwareEntries { get; }=[];
  public ObservableCollection<string> Inventory { get; }=[];
  public string[] Languages { get; }=["en-US","ru-RU"];
@@ -83,7 +97,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public string Status=>l[status]+statusDetail;
  public string HostText=>host is null?l["HostUnavailable"]:string.Format(l["HostSummary"],host.WindowsVersion,l[host.Uefi?"Yes":"No"],l[host.SecureBoot is null?"Unknown":host.SecureBoot==true?"Yes":"No"]);
  public string Distribution { get=>distribution; set {distribution=value; Releases.Clear();foreach(var p in Catalog.Where(x=>x.Distribution==value))Releases.Add(p);Release=Releases.FirstOrDefault();Changed();} }
- public ReleaseProfile? Release { get=>release; set {release=value;image=null;InvalidatePlan();Changed();Changed(nameof(DownloadUrl));Changed(nameof(ChecksumUrl));} }
+ public ReleaseProfile? Release { get=>release; set {release=value;image=null;InvalidatePlan();Changed();Changed(nameof(DownloadUrl));Changed(nameof(ChecksumUrl));Changed(nameof(HdMediaVisibility));Changed(nameof(ReleaseStatus));} }
  public string DownloadUrl=>Release?.DownloadUrl.ToString()??"";
  public string ChecksumUrl=>Release?.ChecksumUrl.ToString()??"";
  public string IsoPath { get=>isoPath;set {isoPath=value;image=null;InvalidatePlan();Changed();} }
@@ -93,6 +107,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public Choice<PartitionSnapshot>? SelectedPartition { get=>Partitions.FirstOrDefault(p=>p.Value==partition);set {if(relabeling)return;partition=value?.Value;InvalidatePlan();Changed();} }
  public string SizeGiB { get=>size;set {size=value;InvalidatePlan();Changed();} }
  public bool Approved { get=>approved;set {approved=value;Changed();CommandManager.InvalidateRequerySuggested();} }
+ public ICommand NativePrepareCommand {get;}
+ public ICommand NativeBootCommand {get;}
+ public ICommand ListNativeCommand {get;}
+ public ICommand CleanupNativeCommand {get;}
+ public ICommand CompleteNativeCommand {get;}
+ public ICommand AbortRestartCommand {get;}
+ public ICommand RestartCommand {get;}
  public ICommand ElevatedStorageCommand { get; }
  public ICommand PrepareBundleCommand { get; }
  public ICommand VerifyBundleCommand { get; }
@@ -116,6 +137,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   Catalog=CatalogService.LoadBundled(Path.Combine(AppContext.BaseDirectory,"catalog.json"));
   foreach(var d in Catalog.Select(p=>p.Distribution).Distinct()) Distributions.Add(d);
   Distribution=Distributions[0];
+  NativePrepareCommand=new AsyncCommand(()=>Run(PrepareNativeAsync),()=>Idle&&plan is not null&&savedOperation is not null&&StorageConsent&&BackupConfirmed);
+  NativeBootCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.RequestInstallerBoot,ct)),()=>Idle);
+  ListNativeCommand=new AsyncCommand(()=>Run(ListNativeAsync),()=>Idle);
+  CleanupNativeCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.CleanupOperation,ct)),()=>Idle&&SelectedOperation is not null);
+  CompleteNativeCommand=new AsyncCommand(()=>Run(ct=>NativeActionAsync(DiagnosticCommand.CompleteInstallation,ct)),()=>Idle&&SelectedOperation is not null&&LinuxBootConfirmed);
+  AbortRestartCommand=new AsyncCommand(()=>Run(_=>{System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","shutdown.exe")){UseShellExecute=false,ArgumentList={"/a"}});SetStatus("RestartCancelled");return Task.CompletedTask;}),()=>Idle);
+  RestartCommand=new AsyncCommand(()=>Run(_=>{System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","shutdown.exe")){UseShellExecute=false,ArgumentList={"/r","/t","15"}});SetStatus("RestartScheduled");return Task.CompletedTask;}),()=>Idle&&SelectedOperation?.Phase==OperationPhase.REBOOT_REQUESTED);
   ElevatedStorageCommand=new AsyncCommand(()=>Run(InspectElevatedStorageAsync),()=>Idle);
   PrepareBundleCommand=new AsyncCommand(()=>Run(PrepareBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
   VerifyBundleCommand=new AsyncCommand(()=>Run(VerifyBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
@@ -128,7 +156,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   SavePlanCommand=new AsyncCommand(()=>Run(SavePlanAsync),()=>Idle&&Approved&&plan is not null&&savedOperation is null);
   BackCommand=new AsyncCommand(()=> {Stage--;return Task.CompletedTask;},()=>Idle&&Stage>0);
   NextCommand=new AsyncCommand(()=>Run(AdvanceAsync),()=>Idle&&Stage<6);
-  CancelCommand=new AsyncCommand(CancelAsync,()=>Busy || savedOperation is not null);
+  CancelCommand=new AsyncCommand(CancelAsync,()=>!nativePreparing&&(Busy || savedOperation is not null));
   InspectCommand=new AsyncCommand(()=>Run(InspectAsync),()=>Idle);
   ExportCommand=new AsyncCommand(()=>Run(ExportAsync),()=>Idle);
   SaveSettingsCommand=new AsyncCommand(()=>Run(_=> {Settings.Language=Language;Settings.Save();SetStatus("SettingsSaved");return Task.CompletedTask;}),()=>Idle);
@@ -177,7 +205,13 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   // Rehash and re-inspect before recording a plan. A previously verified path is not a trust anchor.
   verified=await ImageVerifier.VerifyAsync(verified.Path,verified.Sha256,selected.Id,verified.Trust,ct);
   if(!(await IsoInspector.InspectAsync(verified.Path,selected,ct)).Compatible)throw new SafetyException("UnsupportedImage");
-  plan=Planner.Create(target,source.Id,checked(gib*1024*1024*1024),selected,verified);
+  plan=NativeLayout.ForExecution(Planner.Create(target,source.Id,checked(gib*1024*1024*1024),selected,verified));
+  if(selected.Id.StartsWith("debian-",StringComparison.Ordinal)) {
+   if(string.IsNullOrWhiteSpace(HdKernelPath)||string.IsNullOrWhiteSpace(HdInitrdPath))throw new SafetyException("HdMediaRequired");
+   var kernel=await ImageVerifier.VerifyAsync(HdKernelPath,HdKernelDigest,selected.Id,TrustLevel.UserAuthenticatedDigest,ct);
+   var initrd=await ImageVerifier.VerifyAsync(HdInitrdPath,HdInitrdDigest,selected.Id,TrustLevel.UserAuthenticatedDigest,ct);
+   plan=plan with {AuxiliaryImages=ImmutableSortedDictionary<string,VerifiedImage>.Empty.Add("hd-kernel",kernel).Add("hd-initrd",initrd)};
+  }
   adapter.ValidateInstallationPlan(plan,selected);approvedFingerprint=PlanGuard.Fingerprint(plan);RefreshMaps();SetStatus("Ready");
  }
  private async Task SavePlanAsync(CancellationToken ct) {
@@ -211,6 +245,37 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private void RenderOperations() {
   Operations.Clear();foreach(var record in operationRecords)Operations.Add(string.Format(l["SavedOperation"],record.OperationId,l[record.Phase.ToString()],l[record.DryRun?"DryRun":"Unverified"]));
   if(Operations.Count==0)Operations.Add(l["NoOperations"]);
+ }
+ private async Task PrepareNativeAsync(CancellationToken ct) {
+  var current=plan??throw new SafetyException("PlanRequired");
+  if(!StorageConsent||!BackupConfirmed)throw new SafetyException("AuthorizationRequired");
+  nativePreparing=true;CommandManager.InvalidateRequerySuggested();
+  try {
+   var progress=new Progress<OperationProgress>(update=>SetStatus(update.Phase));
+   var result=await ElevatedDiagnostics.SendAsync(new(1,current.OperationId,"",DiagnosticCommand.PrepareInstallation,null,null,new(current,PlanGuard.Fingerprint(current),StorageConsent,BackupConfirmed)),ct,progress);
+   if(!result.Success)throw new SafetyException(result.ErrorCode??"UnexpectedError");
+   var summary=result.Data?.Deserialize<NativeOperationSummary>()??throw new SafetyException("JournalIncomplete");
+   NativeOperations.Add(summary);SelectedOperation=summary;Stage=6;SetStatus("NativePrepared");
+  } finally {nativePreparing=false;CommandManager.InvalidateRequerySuggested();}
+ }
+ private async Task ListNativeAsync(CancellationToken ct) {
+  var result=await ElevatedDiagnostics.SendAsync(new(1,Guid.NewGuid(),"",DiagnosticCommand.ListOperations,null,null),ct);
+  if(!result.Success)throw new SafetyException(result.ErrorCode??"UnexpectedError");
+  var rows=result.Data?.Deserialize<ImmutableArray<NativeOperationSummary>>()??[];
+  NativeOperations.Clear();foreach(var row in rows)NativeOperations.Add(row);SelectedOperation=NativeOperations.FirstOrDefault();Changed(nameof(SelectedOperation));
+  SetStatus("NativeOperationsLoaded");
+ }
+ private async Task NativeActionAsync(DiagnosticCommand command,CancellationToken ct) {
+  var selected=SelectedOperation??throw new SafetyException("PlanRequired");
+  nativePreparing=true;CommandManager.InvalidateRequerySuggested();
+  try {
+   var result=await ElevatedDiagnostics.SendAsync(new(1,selected.OperationId,"",command,null,null,null,LinuxBootConfirmed),ct);
+   if(!result.Success)throw new SafetyException(result.ErrorCode??"UnexpectedError");
+   if(command==DiagnosticCommand.RequestInstallerBoot){SelectedOperation=selected with {Phase=OperationPhase.REBOOT_REQUESTED};SetStatus("OneTimeBootReady");}
+   else if(command==DiagnosticCommand.CompleteInstallation)SetStatus("InstallationConfirmed");
+   else SetStatus("CleanupFinished");
+   Changed(nameof(SelectedOperation));CommandManager.InvalidateRequerySuggested();
+  } finally {nativePreparing=false;CommandManager.InvalidateRequerySuggested();}
  }
  private async Task InspectElevatedStorageAsync(CancellationToken ct) {
   var result=await ElevatedDiagnostics.InspectAsync(DiagnosticCommand.InspectStorage,ct);
@@ -261,7 +326,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
    var partitions=Partitions.Select(p=>p.Value).ToArray();Partitions.Clear();foreach(var p in partitions)Partitions.Add(new(p,PartitionLabel(p)));
   } finally {relabeling=false;}
   Changed(nameof(SelectedDisk));Changed(nameof(SelectedPartition));RenderOperations();
-  Changed(nameof(InterfaceXmlLanguage));Changed(nameof(Status));Changed(nameof(StageTitle));Changed(nameof(HostText));RefreshInventory();RefreshMaps();}
+  Changed(nameof(ReleaseStatus));Changed(nameof(OperationStatus));Changed(nameof(InterfaceXmlLanguage));Changed(nameof(Status));Changed(nameof(StageTitle));Changed(nameof(HostText));RefreshInventory();RefreshMaps();}
  private void RefreshMaps() {
   CurrentMap.Clear();ProposedMap.Clear();Changes.Clear();if(disk is null)return;
   double width=500d/disk.Capacity;
@@ -270,7 +335,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   foreach(var p in disk.Partitions.OrderBy(p=>p.Offset)) {
    Add(CurrentMap,l["Unallocated"],p.Offset-end);Add(ProposedMap,l["Unallocated"],p.Offset-end);
    string label=$"#{p.Number} {PartitionPurpose(p)} {p.FileSystem}";Add(CurrentMap,label,p.Length);
-   if(plan is not null&&p.Id==plan.SourcePartition){Add(ProposedMap,label,p.Length-plan.RequestedBytes-plan.StagingBytes);Add(ProposedMap,l["LinuxReserved"],plan.RequestedBytes,true);Add(ProposedMap,l["TemporaryStaging"],plan.StagingBytes,true);}else Add(ProposedMap,label,p.Length);
+   if(plan is not null&&p.Id==plan.SourcePartition){Add(ProposedMap,label,p.Length-plan.RequestedBytes-plan.StagingBytes);Add(ProposedMap,l["LinuxReserved"],plan.RequestedBytes,true);Add(ProposedMap,l["InstallerEfi"],NativeLayout.EfiBytes,true);Add(ProposedMap,l["InstallerData"],plan.StagingBytes-NativeLayout.EfiBytes,true);}else Add(ProposedMap,label,p.Length);
    end=p.Offset+p.Length;
   }
   Add(CurrentMap,l["Unallocated"],disk.Capacity-end);Add(ProposedMap,l["Unallocated"],disk.Capacity-end);

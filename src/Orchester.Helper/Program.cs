@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Security.Cryptography;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text.Json;
@@ -10,7 +11,7 @@ using Orchester.Storage;
 
 if (args.Length != 4 || args[0] != "--pipe" || args[2] != "--nonce" ||
     !Regex.IsMatch(args[1], @"\AOrchester-[A-F0-9]{32}\z") || !Regex.IsMatch(args[3], @"\A[A-F0-9]{64}\z")) return 2;
-using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
+using var timeout = new CancellationTokenSource(TimeSpan.FromHours(3));
 try {
     var sid = WindowsIdentity.GetCurrent().User ?? throw new SafetyException("UnauthorizedRequest");
     var security = new PipeSecurity(); security.SetAccessRuleProtection(true, false); security.SetOwner(sid);
@@ -38,11 +39,18 @@ try {
                     ?? throw new SafetyException("DiskChanged");
                 PlanGuard.Validate(plan, disk, request.Fingerprint!, false);
                 data = new { Valid=true, Fingerprint=PlanGuard.Fingerprint(plan), NativeWritesEnabled=false }; break;
+            case DiagnosticCommand.PrepareInstallation:
+            case DiagnosticCommand.RequestInstallerBoot:
+            case DiagnosticCommand.ListOperations:
+            case DiagnosticCommand.CleanupOperation:
+            case DiagnosticCommand.CompleteInstallation:
+            case DiagnosticCommand.InspectOperation:
+                data=await NativeDispatcher.ExecuteAsync(request,pipe,timeout.Token);break;
             default: throw new SafetyException("UnauthorizedRequest");
         }
         response = new(1, request.OperationId, true, null, JsonSerializer.SerializeToElement(data));
     } catch (SafetyException e) { response = new(1, request.OperationId, false, e.Code, null); }
-      catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException) { response = new(1, request.OperationId, false, "UnexpectedError", null); }
+      catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or JsonException or CryptographicException or ArgumentException) { response = new(1, request.OperationId, false, "UnexpectedError", null); }
     await HelperProtocol.WriteAsync(pipe, response, timeout.Token);
     return response.Success ? 0 : 1;
 } catch (Exception e) when (e is IOException or OperationCanceledException or SafetyException or UnauthorizedAccessException) { return 1; }

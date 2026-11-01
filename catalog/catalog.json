@@ -108,6 +108,24 @@
       "modes": [
         "Guided"
       ]
+    },
+    {
+      "id": "debian-netinst-13.0.0",
+      "distribution": "Debian netinst",
+      "version": "13.0.0",
+      "architecture": "x86-64",
+      "downloadUrl": "https://cdimage.debian.org/mirror/cdimage/archive/13.0.0/amd64/iso-cd/debian-13.0.0-amd64-netinst.iso",
+      "checksumUrl": "https://cdimage.debian.org/mirror/cdimage/archive/13.0.0/amd64/iso-cd/SHA256SUMS",
+      "installer": "Debian Installer",
+      "kernelPath": "/install.amd/vmlinuz",
+      "initrdPath": "/install.amd/initrd.gz",
+      "minimumStorageBytes": 26843545600,
+      "secureBoot": true,
+      "adapterVersion": "0.1.0",
+      "validated": false,
+      "modes": [
+        "Guided"
+      ]
     }
   ]
 }

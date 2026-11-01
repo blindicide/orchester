@@ -18,9 +18,10 @@ public static class PlanGuard {
   const long mib=1024*1024;
   if(total>=source.Length || start % mib!=0 || plan.RequestedBytes % mib!=0 || plan.StagingBytes % mib!=0) throw new SafetyException("InvalidGeometry");
   PlannedChange[] expected=[new("ShrinkNtfs",source.Id,source.Offset,source.Length-total,true),new("ReserveLinux",Guid.Empty,start,plan.RequestedBytes,false),new("TemporaryStaging",Guid.Empty,start+plan.RequestedBytes,plan.StagingBytes,false)];
+  if(!plan.DryRun)expected=NativeLayout.ForExecution(plan).Changes.ToArray();
   if(!plan.Changes.SequenceEqual(expected)) throw new SafetyException("PlanChanged");
   if (plan.Image.Trust == TrustLevel.Unverified || plan.Image.Sha256.Length != 64 || !plan.Image.Sha256.All(Uri.IsHexDigit)) throw new SafetyException("ImageUnverified");
-  if (executing) throw new SafetyException("ExecutionUnavailable");
+  if (executing) {if(plan.DryRun)throw new SafetyException("PlanChanged");ReleaseGate.RequireNativeWrites(plan.OperationId); }
  }
  public static void ValidateDisk(DiskSnapshot disk) {
   if (disk.PartitionStyle != "GPT" || disk.Health != "Healthy" || disk.Offline || disk.ReadOnly || disk.BusType is not ("SATA" or "NVMe" or "SAS" or "ATA" or "Virtual" or "File Backed Virtual") || string.IsNullOrWhiteSpace(disk.StableId) || disk.LogicalSector is not (512 or 4096) || disk.PhysicalSector < disk.LogicalSector) throw new SafetyException("UnsupportedDisk");

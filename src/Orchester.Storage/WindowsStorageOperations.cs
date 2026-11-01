@@ -40,7 +40,7 @@ if ($q.Kind -eq 'Shrink') {
     public async Task<DiskSnapshot> InspectAsync(int diskNumber, CancellationToken ct) =>
         (await discovery.DiscoverAsync(ct)).SingleOrDefault(d => d.Number == diskNumber) ?? throw new SafetyException("DiskChanged");
     public async Task ShrinkNtfsAsync(InstallationPlan plan, CancellationToken ct) {
-        ReleaseGate.RequireNativeWrites();
+        ReleaseGate.RequireNativeWrites(plan.OperationId);
         var disk = await InspectAsync(plan.OriginalDisk.Number, ct);
         PlanGuard.Validate(plan, disk, PlanGuard.Fingerprint(plan), false);
         var source = disk.Partitions.Single(p => p.Id == plan.SourcePartition);
@@ -52,7 +52,7 @@ if ($q.Kind -eq 'Shrink') {
             throw new SafetyException("StorageVerificationFailed");
     }
     public async Task<OwnedPartition> CreateStagingAsync(InstallationPlan plan, CancellationToken ct) {
-        ReleaseGate.RequireNativeWrites();
+        ReleaseGate.RequireNativeWrites(plan.OperationId);
         var original = plan.OriginalDisk.Partitions.Single(p => p.Id == plan.SourcePartition);
         long offset = original.Offset + original.Length - plan.StagingBytes;
         var disk = await InspectAsync(plan.OriginalDisk.Number, ct);
@@ -65,14 +65,14 @@ if ($q.Kind -eq 'Shrink') {
         return new(plan.OperationId, disk.StableId, created.Id, created.Number, offset, created.Length, created.Type, "RAW");
     }
     public async Task FormatStagingAsync(InstallationPlan plan, OwnedPartition partition, CancellationToken ct) {
-        ReleaseGate.RequireNativeWrites(); var current = await ValidateOwnedAsync(plan, partition, ct);
+        ReleaseGate.RequireNativeWrites(plan.OperationId); var current = await ValidateOwnedAsync(plan, partition, ct);
         if (current.FileSystem is not ("" or "RAW" or "Unknown")) throw new SafetyException("OwnershipMismatch");
         await RunAsync(new("Format", plan.OriginalDisk.Number, partition.DiskId, partition.PartitionId, partition.Offset, partition.Length, 0), ct);
         if ((await InspectAsync(plan.OriginalDisk.Number, ct)).Partitions.Single(p => p.Id == partition.PartitionId).FileSystem != "NTFS")
             throw new SafetyException("StorageVerificationFailed");
     }
     public async Task DeleteOwnedAsync(InstallationPlan plan, OwnedPartition partition, CancellationToken ct) {
-        ReleaseGate.RequireNativeWrites(); await ValidateOwnedAsync(plan, partition, ct);
+        ReleaseGate.RequireNativeWrites(plan.OperationId); await ValidateOwnedAsync(plan, partition, ct);
         await RunAsync(new("Delete", plan.OriginalDisk.Number, partition.DiskId, partition.PartitionId, partition.Offset, partition.Length, 0), ct);
         if ((await InspectAsync(plan.OriginalDisk.Number, ct)).Partitions.Any(p => p.Id == partition.PartitionId)) throw new SafetyException("StorageVerificationFailed");
     }

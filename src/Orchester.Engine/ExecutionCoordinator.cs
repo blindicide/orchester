@@ -17,7 +17,7 @@ public sealed record ExecutionRecord(long Sequence, Guid OperationId, OperationP
 
 // Append-only write-ahead log: a critical intent is flushed before invoking its backend.
 // Recovery never retries an interrupted storage/firmware action without independent inspection.
-public sealed class ExecutionCoordinator(string root, IExecutionBackend backend) {
+public sealed class ExecutionCoordinator(string root, IExecutionBackend? backend) {
     public async Task<OperationPhase> PrepareAsync(InstallationPlan plan, string approvedFingerprint, CancellationToken ct) {
         if (plan.DryRun) throw new SafetyException("ExecutionUnavailable");
         if (PlanGuard.Fingerprint(plan) != approvedFingerprint) throw new SafetyException("PlanChanged");
@@ -37,16 +37,16 @@ public sealed class ExecutionCoordinator(string root, IExecutionBackend backend)
             await file.WriteAsync(new byte[]{10}, CancellationToken.None); file.Flush(true);
         }
         try {
-            await Write("Preflight", "INTENT"); await backend.PreflightAsync(plan, ct); await Write("Preflight", "VERIFIED");
+            await Write("Preflight", "INTENT"); await backend!.PreflightAsync(plan, ct); await Write("Preflight", "VERIFIED");
             ct.ThrowIfCancellationRequested();
             await Write("PrepareStorage", "INTENT"); criticalStarted = true;
-            ExecutionArtifact storage = await backend.PrepareStorageAsync(plan, CancellationToken.None);
+            ExecutionArtifact storage = await backend!.PrepareStorageAsync(plan, CancellationToken.None);
             phase = OperationPhase.STORAGE_PREPARED; await Write("PrepareStorage", "VERIFIED", storage);
             await Write("StageInstaller", "INTENT");
-            ExecutionArtifact staging = await backend.StageInstallerAsync(plan, ct);
+            ExecutionArtifact staging = await backend!.StageInstallerAsync(plan, ct);
             phase = OperationPhase.INSTALLER_STAGED; await Write("StageInstaller", "VERIFIED", staging);
             await Write("ConfigureBoot", "INTENT");
-            ExecutionArtifact boot = await backend.ConfigureBootAsync(plan, CancellationToken.None);
+            ExecutionArtifact boot = await backend!.ConfigureBootAsync(plan, CancellationToken.None);
             phase = OperationPhase.BOOT_CONFIGURED; await Write("ConfigureBoot", "VERIFIED", boot);
             return phase; // Reboot is a separate explicit action.
         } catch (OperationCanceledException) {
@@ -69,7 +69,7 @@ public sealed class ExecutionCoordinator(string root, IExecutionBackend backend)
             await JsonSerializer.SerializeAsync(file, entry, cancellationToken: CancellationToken.None); await file.WriteAsync(new byte[]{10}); file.Flush(true);
         }
         ct.ThrowIfCancellationRequested(); await Append("INTENT", OperationPhase.BOOT_CONFIGURED);
-        try { await backend.RequestOneTimeBootAsync(plan, CancellationToken.None); await Append("VERIFIED", OperationPhase.REBOOT_REQUESTED); }
+        try { await backend!.RequestOneTimeBootAsync(plan, CancellationToken.None); await Append("VERIFIED", OperationPhase.REBOOT_REQUESTED); }
         catch { await Append("STOPPED", OperationPhase.UNKNOWN_EXTERNAL_STATE); throw; }
     }
     public async Task<ImmutableArray<ExecutionRecord>> ReadAsync(Guid id, CancellationToken ct) {

@@ -7,10 +7,10 @@ using System.Text.Json;
 using Orchester.Core;
 namespace Orchester.Security;
 
-public enum DiagnosticCommand { InspectHost, InspectFirmware, ValidatePlan, InspectStorage }
+public enum DiagnosticCommand { InspectHost, InspectFirmware, ValidatePlan, InspectStorage, PrepareInstallation, RequestInstallerBoot, ListOperations, CleanupOperation, CompleteInstallation, InspectOperation }
 public sealed record DiagnosticRequest(int Version, Guid OperationId, string Nonce, DiagnosticCommand Command,
-    InstallationPlan? Plan, string? Fingerprint);
-public sealed record DiagnosticResponse(int Version, Guid OperationId, bool Success, string? ErrorCode, JsonElement? Data);
+    InstallationPlan? Plan, string? Fingerprint, ExecutionRequest? Execution=null,bool LinuxBootConfirmed=false);
+public sealed record DiagnosticResponse(int Version, Guid OperationId, bool Success, string? ErrorCode, JsonElement? Data,bool IsProgress=false);
 public static class HelperProtocol {
     [DllImport("kernel32.dll", SetLastError=true)]
     [return: MarshalAs(UnmanagedType.Bool)] private static extern bool GetNamedPipeServerProcessId(SafePipeHandle pipe, out uint processId);
@@ -44,15 +44,19 @@ public static class HelperProtocol {
         try { return JsonSerializer.Deserialize<T>(bytes) ?? throw new SafetyException("IpcFrameInvalid"); }
         catch (JsonException) { throw new SafetyException("IpcFrameInvalid"); }
     }
-    public static async Task<DiagnosticResponse> ExchangeAsync(string pipeName, DiagnosticRequest request, CancellationToken ct, int? expectedServerPid=null) {
+    public static async Task<DiagnosticResponse> ExchangeAsync(string pipeName, DiagnosticRequest request, CancellationToken ct, int? expectedServerPid=null,IProgress<OperationProgress>? progress=null) {
         if (!System.Text.RegularExpressions.Regex.IsMatch(pipeName, @"\AOrchester-[A-F0-9]{32}\z")) throw new SafetyException("UnauthorizedRequest");
-        using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, OperatingSystem.IsWindows() ? PipeOptions.Asynchronous : PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+        using var pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, OperatingSystem.IsWindows() ? PipeOptions.Asynchronous : PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly,System.Security.Principal.TokenImpersonationLevel.Impersonation);
         await pipe.ConnectAsync(15000, ct);
         if (OperatingSystem.IsWindows() && (expectedServerPid is null || !GetNamedPipeServerProcessId(pipe.SafePipeHandle, out uint serverPid) || serverPid != expectedServerPid.Value))
             throw new SafetyException("UnauthorizedRequest");
         await WriteAsync(pipe, request, ct);
-        var response = await ReadAsync<DiagnosticResponse>(pipe, ct);
-        if (response.Version != 1 || response.OperationId != request.OperationId) throw new SafetyException("UnauthorizedRequest");
-        return response;
+        while(true) {
+            var response=await ReadAsync<DiagnosticResponse>(pipe,ct);
+            if(response.Version!=1||response.OperationId!=request.OperationId)throw new SafetyException("UnauthorizedRequest");
+            if(!response.IsProgress)return response;
+            var update=response.Data?.Deserialize<OperationProgress>();
+            if(update is not null&&update.OperationId==request.OperationId)progress?.Report(update);
+        }
     }
 }

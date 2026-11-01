@@ -13,7 +13,7 @@ public abstract class DistributionAdapter : IInstallationAdapter {
  }
  public long CalculateSpaceRequirements(ReleaseProfile profile,long imageBytes) => checked(profile.MinimumStorageBytes+imageBytes+2L*1024*1024*1024);
  public void ValidateInstallationPlan(InstallationPlan plan,ReleaseProfile profile) {
-  ValidateRelease(profile,!plan.DryRun);
+  ValidateRelease(profile,plan.Mode==InstallationMode.Automated);
   if(plan.AdapterVersion!=Version || plan.ProfileId!=profile.Id || !profile.Modes.Contains(plan.Mode)) throw new SafetyException("AdapterMismatch");
  }
  public string PrepareInstaller(ReleaseProfile profile) => System.Text.Json.JsonSerializer.Serialize(InstallerRecipes.Create(profile));

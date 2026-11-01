@@ -40,7 +40,7 @@ public static class AuthenticodeVerifier {
     [DllImport("crypt32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CertCloseStore(IntPtr store,uint flags);
     [DllImport("crypt32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CryptMsgClose(IntPtr message);
     [SupportedOSPlatform("windows")]
-    private static X509Certificate2 LoadSigner(string path) {
+    public static X509Certificate2 LoadSigner(string path) {
         IntPtr store=IntPtr.Zero,message=IntPtr.Zero,certificate=IntPtr.Zero,info=IntPtr.Zero;
         try {
             // Read embedded PKCS#7 signer metadata; WinVerifyTrust above validates its signature and chain.

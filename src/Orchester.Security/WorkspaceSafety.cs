@@ -65,6 +65,19 @@ public sealed class SecretWorkspace : IAsyncDisposable {
 }
 
 public static class ReleaseGate {
-    // Enable only in a release built with recorded VM qualification; catalog edits cannot change this.
-    public static void RequireNativeWrites() => throw new SafetyException("ExecutionUnavailable");
+    private sealed record Lease(Guid OperationId,DateTimeOffset Expires);
+    private static readonly AsyncLocal<Lease?> Current=new();
+    public static IDisposable Authorize(Guid operationId) {
+        if(!OperatingSystem.IsWindows()||operationId==Guid.Empty)throw new SafetyException("UnauthorizedRequest");
+        if(!IsAdministrator())throw new SafetyException("UnauthorizedRequest");
+        var old=Current.Value;Current.Value=new(operationId,DateTimeOffset.UtcNow.AddHours(3));return new Revert(()=>Current.Value=old);
+    }
+    [SupportedOSPlatform("windows")]
+    private static bool IsAdministrator()=>new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+    public static void RequireNativeWrites()=>RequireNativeWrites(Current.Value?.OperationId??Guid.Empty);
+    public static void RequireNativeWrites(Guid operationId) {
+        if(Current.Value is not { } lease||operationId==Guid.Empty||lease.OperationId!=operationId||lease.Expires<DateTimeOffset.UtcNow)
+            throw new SafetyException("UnauthorizedRequest");
+    }
+    private sealed class Revert(Action restore):IDisposable {public void Dispose()=>restore();}
 }
