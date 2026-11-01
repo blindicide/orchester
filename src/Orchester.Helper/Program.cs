@@ -1,0 +1,46 @@
+using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using Orchester.Boot;
+using Orchester.Core;
+using Orchester.Security;
+using Orchester.Storage;
+
+if (args.Length != 4 || args[0] != "--pipe" || args[2] != "--nonce" ||
+    !Regex.IsMatch(args[1], @"\AOrchester-[A-F0-9]{32}\z") || !Regex.IsMatch(args[3], @"\A[A-F0-9]{64}\z")) return 2;
+using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
+try {
+    var sid = WindowsIdentity.GetCurrent().User ?? throw new SafetyException("UnauthorizedRequest");
+    var security = new PipeSecurity(); security.SetAccessRuleProtection(true, false); security.SetOwner(sid);
+    security.AddAccessRule(new PipeAccessRule(sid, PipeAccessRights.FullControl, AccessControlType.Allow));
+    using var pipe = NamedPipeServerStreamAcl.Create(args[1], PipeDirection.InOut, 1, PipeTransmissionMode.Byte,
+        PipeOptions.Asynchronous, 4096, 4096, security);
+    await pipe.WaitForConnectionAsync(timeout.Token);
+    var request = await HelperProtocol.ReadAsync<DiagnosticRequest>(pipe, timeout.Token);
+    DiagnosticResponse response;
+    try {
+        HelperProtocol.Authenticate(request, args[3]);
+        object data;
+        switch (request.Command) {
+            case DiagnosticCommand.InspectHost: data = HostInspector.Inspect(); break;
+            case DiagnosticCommand.InspectFirmware:
+                WindowsFirmwareVariables.EnableReadPrivilege();
+                data = new UefiBootService(new WindowsFirmwareVariables()).Inspect(); break;
+            case DiagnosticCommand.ValidatePlan:
+                var plan = request.Plan ?? throw new SafetyException("UnauthorizedRequest");
+                var host = HostInspector.Inspect();
+                if (!host.SupportedWindows || !host.Uefi || !host.Is64Bit) throw new SafetyException("UnsupportedHost");
+                var disk = (await new WindowsStorageDiscovery().DiscoverAsync(timeout.Token)).SingleOrDefault(d => d.Number == plan.OriginalDisk.Number)
+                    ?? throw new SafetyException("DiskChanged");
+                PlanGuard.Validate(plan, disk, request.Fingerprint!, false);
+                data = new { Valid=true, Fingerprint=PlanGuard.Fingerprint(plan), NativeWritesEnabled=false }; break;
+            default: throw new SafetyException("UnauthorizedRequest");
+        }
+        response = new(1, request.OperationId, true, null, JsonSerializer.SerializeToElement(data));
+    } catch (SafetyException e) { response = new(1, request.OperationId, false, e.Code, null); }
+      catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException) { response = new(1, request.OperationId, false, "UnexpectedError", null); }
+    await HelperProtocol.WriteAsync(pipe, response, timeout.Token);
+    return response.Success ? 0 : 1;
+} catch (Exception e) when (e is IOException or OperationCanceledException or SafetyException or UnauthorizedAccessException) { return 1; }

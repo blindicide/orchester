@@ -16,8 +16,8 @@ public abstract class DistributionAdapter : IInstallationAdapter {
   ValidateRelease(profile,!plan.DryRun);
   if(plan.AdapterVersion!=Version || plan.ProfileId!=profile.Id || !profile.Modes.Contains(plan.Mode)) throw new SafetyException("AdapterMismatch");
  }
- public string PrepareInstaller(ReleaseProfile profile) => throw new SafetyException("ExecutionUnavailable");
- public string GenerateBootConfiguration(ReleaseProfile profile) => throw new SafetyException("ExecutionUnavailable");
+ public string PrepareInstaller(ReleaseProfile profile) => System.Text.Json.JsonSerializer.Serialize(InstallerRecipes.Create(profile));
+ public string GenerateBootConfiguration(ReleaseProfile profile) => InstallerRecipes.GrubPreview(profile);
  public virtual string GenerateUnattendedConfiguration(ReleaseProfile profile) => throw new SafetyException("AutomationUnavailable");
  public string GetRecoveryInstructions()=>"InspectJournal";
  public static IInstallationAdapter For(ReleaseProfile profile) => profile.Id.Split('-')[0] switch {

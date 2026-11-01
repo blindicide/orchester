@@ -83,6 +83,7 @@ try {
  Check((await File.ReadAllBytesAsync(completedDestination)).SequenceEqual(bytes),"completed partial survives server 416 and is fully verified");
  using var rsa=RSA.Create(2048);var catalog=Encoding.UTF8.GetBytes("{}");
  Refuses(()=>CatalogService.VerifyUpdate(catalog,new byte[256],rsa),"CatalogSignatureInvalid");
+ passed+=await AdvancedChecks.RunAsync();
  Console.WriteLine($"{passed} checks passed.");
 } finally {Directory.Delete(root,true);}
 sealed class FakeHttp(byte[] data,bool range=false) : HttpMessageHandler {

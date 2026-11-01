@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
+using System.Text.Json;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -56,6 +57,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public ObservableCollection<MapSegment> ProposedMap { get; }=[];
  public ObservableCollection<string> Changes { get; }=[];
  public ObservableCollection<string> Operations { get; }=[];
+ public ObservableCollection<string> FirmwareEntries { get; }=[];
  public ObservableCollection<string> Inventory { get; }=[];
  public string[] Languages { get; }=["en-US","ru-RU"];
  public string Language { get=>l.Language; set { l.SetLanguage(value); Settings.Language=l.Language; Changed(); RefreshText(); } }
@@ -91,6 +93,9 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  public Choice<PartitionSnapshot>? SelectedPartition { get=>Partitions.FirstOrDefault(p=>p.Value==partition);set {if(relabeling)return;partition=value?.Value;InvalidatePlan();Changed();} }
  public string SizeGiB { get=>size;set {size=value;InvalidatePlan();Changed();} }
  public bool Approved { get=>approved;set {approved=value;Changed();CommandManager.InvalidateRequerySuggested();} }
+ public ICommand PrepareBundleCommand { get; }
+ public ICommand VerifyBundleCommand { get; }
+ public ICommand FirmwareCommand { get; }
  public ICommand RefreshCommand { get; }
  public ICommand VerifyCommand { get; }
  public ICommand BrowseCommand { get; }
@@ -110,6 +115,9 @@ public sealed class MainViewModel : INotifyPropertyChanged {
   Catalog=CatalogService.LoadBundled(Path.Combine(AppContext.BaseDirectory,"catalog.json"));
   foreach(var d in Catalog.Select(p=>p.Distribution).Distinct()) Distributions.Add(d);
   Distribution=Distributions[0];
+  PrepareBundleCommand=new AsyncCommand(()=>Run(PrepareBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
+  VerifyBundleCommand=new AsyncCommand(()=>Run(VerifyBundleAsync),()=>Idle&&plan is not null&&savedOperation is not null);
+  FirmwareCommand=new AsyncCommand(()=>Run(InspectFirmwareAsync),()=>Idle);
   RefreshCommand=new AsyncCommand(()=>Run(RefreshAsync),()=>Idle);
   VerifyCommand=new AsyncCommand(()=>Run(VerifyAsync),()=>Idle);
   BrowseCommand=new AsyncCommand(()=> {var dialog=new OpenFileDialog {Filter="ISO (*.iso)|*.iso",CheckFileExists=true};if(dialog.ShowDialog()==true)IsoPath=dialog.FileName;return Task.CompletedTask;},()=>Idle);
@@ -196,6 +204,28 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private void RenderOperations() {
   Operations.Clear();foreach(var record in operationRecords)Operations.Add(string.Format(l["SavedOperation"],record.OperationId,l[record.Phase.ToString()],l[record.DryRun?"DryRun":"Unverified"]));
   if(Operations.Count==0)Operations.Add(l["NoOperations"]);
+ }
+ private async Task PrepareBundleAsync(CancellationToken ct) {
+  var current=plan??throw new SafetyException("PlanRequired");
+  var profile=Release??throw new SafetyException("AdapterMismatch");
+  Settings.Save();
+  await new StagingWorkspace().PrepareAsync(current,profile,InstallerRecipes.Create(profile),Settings.StagingDirectory,false,ct);
+  string folder=Path.Combine(Settings.StagingDirectory,current.OperationId.ToString("D"));
+  await File.WriteAllTextAsync(Path.Combine(folder,"grub-preview.cfg"),InstallerRecipes.GrubPreview(profile),ct);
+  SetStatus("BundlePrepared");
+ }
+ private async Task VerifyBundleAsync(CancellationToken ct) {
+  var current=plan??throw new SafetyException("PlanRequired");
+  await new StagingWorkspace().VerifyAsync(Path.Combine(Settings.StagingDirectory,current.OperationId.ToString("D")),current,ct);
+  SetStatus("BundleVerified");
+ }
+ private async Task InspectFirmwareAsync(CancellationToken ct) {
+  var response=await ElevatedDiagnostics.InspectAsync(DiagnosticCommand.InspectFirmware,ct);
+  if(!response.Success)throw new SafetyException(response.ErrorCode??"FirmwareUnavailable");
+  var snapshot=response.Data?.Deserialize<FirmwareSnapshot>()??throw new SafetyException("FirmwareMalformed");
+  FirmwareEntries.Clear();
+  foreach(var entry in snapshot.Entries)FirmwareEntries.Add($"Boot{entry.Number:X4} · {entry.Description} · {entry.EfiPath}");
+  SetStatus("FirmwareInspected");
  }
  private async Task ExportAsync(CancellationToken ct) {
   var dialog=new SaveFileDialog {Filter="JSON (*.json)|*.json",FileName="orchester-diagnostics.json"};

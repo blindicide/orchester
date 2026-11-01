@@ -11,4 +11,5 @@
   <Project Path="src/Orchester.App/Orchester.App.csproj" />
   <Project Path="tests/Unit/Orchester.Tests.csproj" />
   <Project Path="tests/Windows/Orchester.UiSmoke.csproj" />
+  <Project Path="src/Orchester.Helper/Orchester.Helper.csproj" />
 </Solution>
