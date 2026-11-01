@@ -35,6 +35,7 @@ public sealed class WindowsStorageDiscovery(bool includeSafetyDetails=true) : IS
   if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("WindowsRequired");
   var executable=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","powershell.exe");
   var start=new ProcessStartInfo(executable) { UseShellExecute=false, CreateNoWindow=true, RedirectStandardOutput=true, RedirectStandardError=true, StandardOutputEncoding=Encoding.UTF8 };
+  start.Environment["PSModulePath"]=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","Modules");
   foreach(var arg in new[]{"-NoLogo","-NoProfile","-NonInteractive","-EncodedCommand",Convert.ToBase64String(Encoding.Unicode.GetBytes("$probeSafety="+(includeSafetyDetails?"$true":"$false")+";\n"+Script))}) start.ArgumentList.Add(arg);
   using var process=Process.Start(start) ?? throw new SafetyException("DiscoveryFailed");
   using var timeout=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); timeout.CancelAfter(TimeSpan.FromSeconds(includeSafetyDetails?180:30));

@@ -4,7 +4,7 @@
 <sys:String x:Key="Disks">Диски и разделы</sys:String>
 <sys:String x:Key="Recovery">Восстановление</sys:String>
 <sys:String x:Key="Settings">Настройки</sys:String>
-<sys:String x:Key="Foundation">Предварительная версия · только чтение</sys:String>
+<sys:String x:Key="Foundation">Предварительная версия · запись на диски отключена</sys:String>
 <sys:String x:Key="Stage1">1 · Выбор операционной системы</sys:String>
 <sys:String x:Key="Stage2">2 · Выбор версии</sys:String>
 <sys:String x:Key="Stage3">3 · Выбор диска и объёма</sys:String>
@@ -67,7 +67,7 @@
 <sys:String x:Key="Language">Язык интерфейса</sys:String>
 <sys:String x:Key="Dark">Тёмная тема</sys:String>
 <sys:String x:Key="DownloadDirectory">Каталог загрузок</sys:String>
-<sys:String x:Key="StagingDirectory">Предпочтительное место подготовки (для будущих версий)</sys:String>
+<sys:String x:Key="StagingDirectory">Каталог файлов подготовки</sys:String>
 <sys:String x:Key="Bandwidth">Предел скорости загрузки (МиБ/с, 0 = без ограничения)</sys:String>
 <sys:String x:Key="Verbose">Подробная диагностика</sys:String>
 <sys:String x:Key="CheckUpdates">Проверять обновления (после реализации проверки подлинности)</sys:String>
@@ -163,7 +163,7 @@
 <sys:String x:Key="StagingIncomplete">Рабочая область подготовки неполна или относится к другому плану.</sys:String>
 <sys:String x:Key="StagingChanged">Подготовленные файлы изменены. Не загружайтесь из этой области.</sys:String>
 <sys:String x:Key="InvalidInstallerOptions">Настройки установщика содержат некорректное или небезопасное значение.</sys:String>
-<sys:String x:Key="PasswordHashRequired">Требуется стойкий хеш пароля SHA-512 crypt. Открытые пароли отклоняются.</sys:String>
+<sys:String x:Key="PasswordHashRequired">Требуется SHA-512 crypt: не менее 100000 раундов и соль из 16 символов. Открытые пароли отклоняются.</sys:String>
 <sys:String x:Key="AutomationTargetUnsafe">Автоустановка требует независимо проверенные новые разделы root и EFI Linux с явным разрешением форматирования.</sys:String>
 <sys:String x:Key="AutomationPreview">Только просмотр конфигурации: выполнение автоустановки не разрешено.</sys:String>
 <sys:String x:Key="IndependentLinuxTargetRequired">Повторно проверьте серийный номер диска Linux, номера разделов и GUID GPT в установщике.</sys:String>

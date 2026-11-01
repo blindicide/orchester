@@ -4,7 +4,7 @@
 <sys:String x:Key="Disks">Disks and partitions</sys:String>
 <sys:String x:Key="Recovery">Recovery</sys:String>
 <sys:String x:Key="Settings">Settings</sys:String>
-<sys:String x:Key="Foundation">Foundation preview · read-only</sys:String>
+<sys:String x:Key="Foundation">Execution preview · native writes disabled</sys:String>
 <sys:String x:Key="Stage1">1 · Select operating system</sys:String>
 <sys:String x:Key="Stage2">2 · Select release</sys:String>
 <sys:String x:Key="Stage3">3 · Choose disk and storage size</sys:String>
@@ -67,7 +67,7 @@
 <sys:String x:Key="Language">Interface language</sys:String>
 <sys:String x:Key="Dark">Dark appearance</sys:String>
 <sys:String x:Key="DownloadDirectory">Download directory</sys:String>
-<sys:String x:Key="StagingDirectory">Preferred staging location (reserved for future execution)</sys:String>
+<sys:String x:Key="StagingDirectory">Preparation bundle directory</sys:String>
 <sys:String x:Key="Bandwidth">Download bandwidth limit (MiB/s, 0 = unlimited)</sys:String>
 <sys:String x:Key="Verbose">Verbose diagnostics</sys:String>
 <sys:String x:Key="CheckUpdates">Check for updates (reserved; authenticated updater pending)</sys:String>
@@ -163,7 +163,7 @@
 <sys:String x:Key="StagingIncomplete">The staging workspace is incomplete or belongs to a different plan.</sys:String>
 <sys:String x:Key="StagingChanged">Staged files changed after preparation. Do not boot from this workspace.</sys:String>
 <sys:String x:Key="InvalidInstallerOptions">Installer settings contain an invalid or unsafe value.</sys:String>
-<sys:String x:Key="PasswordHashRequired">Use a strong SHA-512 crypt password hash. Plaintext passwords are rejected.</sys:String>
+<sys:String x:Key="PasswordHashRequired">Use SHA-512 crypt with at least 100000 rounds and a 16-character salt. Plaintext passwords are rejected.</sys:String>
 <sys:String x:Key="AutomationTargetUnsafe">Automated installation requires independently verified new root and dedicated Linux EFI partitions with explicit formatting approval.</sys:String>
 <sys:String x:Key="AutomationPreview">Configuration preview only: not approved for unattended execution.</sys:String>
 <sys:String x:Key="IndependentLinuxTargetRequired">Revalidate the Linux disk serial, partition numbers and GPT GUIDs in the installer environment.</sys:String>

@@ -8,14 +8,14 @@ namespace Orchester.Boot;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsFirmwareVariables : IFirmwareVariables {
     private const string GlobalGuid = "{8BE4DF61-93CA-11D2-AA0D-00E098032B8C}";
-    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, ExactSpelling=true, SetLastError=true)]
     private static extern uint GetFirmwareEnvironmentVariableW(string name, string guid, byte[] buffer, uint size);
-    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, ExactSpelling=true, SetLastError=true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetFirmwareEnvironmentVariableExW(string name, string guid, byte[] buffer, uint size, uint attributes);
     [DllImport("advapi32.dll", SetLastError=true)]
     [return: MarshalAs(UnmanagedType.Bool)] private static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
-    [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    [DllImport("advapi32.dll", CharSet=CharSet.Unicode, ExactSpelling=true, SetLastError=true)]
     [return: MarshalAs(UnmanagedType.Bool)] private static extern bool LookupPrivilegeValueW(string? system, string name, out Luid luid);
     [DllImport("advapi32.dll", SetLastError=true)]
     [return: MarshalAs(UnmanagedType.Bool)] private static extern bool AdjustTokenPrivileges(IntPtr token, bool disableAll, ref TokenPrivileges state, uint length, IntPtr previous, IntPtr returned);

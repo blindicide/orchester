@@ -3,6 +3,7 @@ using System.IO;
 using System.Diagnostics;
 using Orchester.Security;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Orchester.Core;
 using Orchester.Engine;
 using Orchester.Storage;
@@ -51,6 +52,19 @@ public static class Program {
   Console.WriteLine("PASS native named-pipe helper exchange and unauthorized nonce rejection");
   try {AuthenticodeVerifier.VerifyPublisher(typeof(App).Assembly.Location,new string('A',64));throw new Exception("Unsigned executable accepted");}
   catch(Orchester.Core.SafetyException error) when(error.Code=="ExecutableSignatureInvalid") {Console.WriteLine("PASS unsigned executable rejected");}
+  string? signedPath=Environment.GetEnvironmentVariable("ORCHESTER_TEST_SIGNED_EXE");
+  string? certificatePath=Environment.GetEnvironmentVariable("ORCHESTER_TEST_SIGNER_CERT");
+  if(signedPath is not null&&certificatePath is not null) {
+   using var certificate=X509CertificateLoader.LoadCertificateFromFile(certificatePath);
+   string publisher=Convert.ToHexString(SHA256.HashData(certificate.PublicKey.ExportSubjectPublicKeyInfo()));
+   AuthenticodeVerifier.VerifyPublisher(signedPath,publisher);
+   try{AuthenticodeVerifier.VerifyPublisher(signedPath,new string('0',64));throw new Exception("Wrong publisher accepted");}
+   catch(Orchester.Core.SafetyException error)when(error.Code=="ExecutableSignatureInvalid"){}
+   using(var changed=new FileStream(signedPath,FileMode.Open,FileAccess.ReadWrite)){changed.Position=512;int original=changed.ReadByte();changed.Position=512;changed.WriteByte((byte)(original^0xFF));}
+   try{AuthenticodeVerifier.VerifyPublisher(signedPath,publisher);throw new Exception("Modified signed executable accepted");}
+   catch(Orchester.Core.SafetyException error)when(error.Code=="ExecutableSignatureInvalid"){}
+   Console.WriteLine("PASS valid Authenticode publisher, wrong-publisher rejection and tamper rejection");
+  }
   var root=Path.Combine(Path.GetTempPath(),"OrchesterUi-"+Guid.NewGuid());Directory.CreateDirectory(root);
   try {
    const long gib=1024L*1024*1024;

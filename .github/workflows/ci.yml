@@ -23,7 +23,7 @@ jobs:
           dotnet-version: '10.0.x'
       - run: dotnet build Orchester.slnx -c Release
       - run: dotnet run --project tests/Unit/Orchester.Tests.csproj -c Release --no-build
-      - run: dotnet run --project tests/Windows/Orchester.UiSmoke.csproj -c Release --no-build
+      - run: ./tests/Windows/Run-Checks.ps1
       - run: dotnet publish src/Orchester.App/Orchester.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/Orchester
       - run: dotnet publish src/Orchester.Helper/Orchester.Helper.csproj -c Release -r win-x64 --self-contained true -o artifacts/Orchester
       - uses: actions/upload-artifact@v4

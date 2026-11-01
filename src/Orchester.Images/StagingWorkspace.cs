@@ -18,6 +18,7 @@ public sealed class StagingWorkspace {
         if (Directory.Exists(target) || File.Exists(target)) throw new SafetyException("DestinationExists");
         await ImageVerifier.VerifyAsync(plan.Image.Path, plan.Image.Sha256, plan.ProfileId, plan.Image.Trust, ct);
         await using var iso = await Iso9660Reader.OpenAsync(plan.Image.Path, ct);
+        if(new FileInfo(plan.Image.Path).Length!=plan.Image.Length)throw new SafetyException("ImageMismatch");
         await iso.VerifySourceAsync(plan.Image.Sha256,ct);
         var kernel = await iso.FindAsync(profile.KernelPath, ct);
         var initrd = await iso.FindAsync(profile.InitrdPath, ct);
@@ -71,6 +72,17 @@ public sealed class StagingWorkspace {
             ["orchester/inspected-bootx64.efi"]=await source.HashAsync(await source.FindAsync("/EFI/BOOT/BOOTX64.EFI",ct),ct),
             ["orchester/source.iso"]=plan.Image.Sha256.ToLowerInvariant()
         };
+        var allowed=sourceHashes.Keys.Append("staging.json").ToHashSet(StringComparer.Ordinal);
+        foreach(var entry in Directory.EnumerateFileSystemEntries(target)) {
+            WorkspaceSafety.RejectReparsePoints(entry);
+            if(Directory.Exists(entry)) {
+                if(Path.GetFileName(entry)!="orchester")throw new SafetyException("StagingChanged");
+                foreach(var child in Directory.EnumerateFileSystemEntries(entry)) {
+                    WorkspaceSafety.RejectReparsePoints(child);
+                    if(Directory.Exists(child)||!allowed.Contains("orchester/"+Path.GetFileName(child)))throw new SafetyException("StagingChanged");
+                }
+            } else if(!allowed.Contains(Path.GetFileName(entry)))throw new SafetyException("StagingChanged");
+        }
         if(receipt.Files.Length!=sourceHashes.Count)throw new SafetyException("StagingIncomplete");
         foreach (var expected in receipt.Files) {
             if(!sourceHashes.TryGetValue(expected.RelativePath,out var authenticHash)||!authenticHash.Equals(expected.Sha256,StringComparison.OrdinalIgnoreCase))throw new SafetyException("StagingChanged");

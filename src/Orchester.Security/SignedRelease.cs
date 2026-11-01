@@ -11,7 +11,7 @@ public sealed class AuthenticatedRelease {
 }
 public static class SignedRelease {
     public static AuthenticatedRelease Verify(byte[] exactPayload, byte[] signature, RSA pinnedReleaseKey, Version currentVersion) {
-        if (exactPayload.Length>64*1024 || !pinnedReleaseKey.VerifyData(exactPayload,signature,HashAlgorithmName.SHA256,RSASignaturePadding.Pss))
+        if (pinnedReleaseKey.KeySize<2048 || exactPayload.Length>64*1024 || !pinnedReleaseKey.VerifyData(exactPayload,signature,HashAlgorithmName.SHA256,RSASignaturePadding.Pss))
             throw new SafetyException("UpdateSignatureInvalid");
         ReleaseUpdateManifest manifest;
         try {manifest=JsonSerializer.Deserialize<ReleaseUpdateManifest>(exactPayload)??throw new SafetyException("UpdateSignatureInvalid");}

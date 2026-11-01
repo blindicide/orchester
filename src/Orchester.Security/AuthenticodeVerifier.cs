@@ -31,7 +31,7 @@ public static class AuthenticodeVerifier {
         finally {data.StateAction=2;WinVerifyTrust(new IntPtr(-1),ref action,ref data);Marshal.FreeHGlobal(info);Marshal.FreeCoTaskMem(name);}
     }
     [StructLayout(LayoutKind.Sequential)] private struct CertificateContext {public uint Encoding;public IntPtr Encoded;public uint Length;}
-    [DllImport("crypt32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
+    [DllImport("crypt32.dll",CharSet=CharSet.Unicode,ExactSpelling=true,SetLastError=true)]
     [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CryptQueryObject(uint objectType,string path,uint contentFlags,uint formatFlags,uint flags,out uint encoding,out uint content,out uint format,out IntPtr store,out IntPtr message,out IntPtr context);
     [DllImport("crypt32.dll",SetLastError=true)]
     [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CryptMsgGetParam(IntPtr message,uint parameter,uint index,IntPtr data,ref uint length);

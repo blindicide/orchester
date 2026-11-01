@@ -45,16 +45,19 @@ public static class AdvancedChecks {
             string staged=Path.Combine(stagingRoot,plan.OperationId.ToString("D"));
             Check(receipt.Files.Length==4,"ISO and boot files extracted with hashes");
             await staging.VerifyAsync(staged,plan,profile,default);Check(true,"staging receipt verifies all files");
+            string extra=Path.Combine(staged,"unexpected.efi");await File.WriteAllBytesAsync(extra,[1]);
+            await RefusesAsync(()=>staging.VerifyAsync(staged,plan,profile,default),"StagingChanged");File.Delete(extra);
             await File.AppendAllTextAsync(Path.Combine(staged,"orchester","vmlinuz"),"changed");
             await RefusesAsync(()=>staging.VerifyAsync(staged,plan,profile,default),"StagingChanged");
             await RefusesAsync(()=>staging.PrepareAsync(plan,profile,recipe,stagingRoot,false,default),"DestinationExists");
             await RefusesAsync(()=>staging.PrepareAsync(plan with {Image=plan.Image with {Length=5*gib}},profile,recipe,Path.Combine(root,"fat32"),true,default),"Fat32FileLimit");
             await RefusesAsync(()=>staging.PrepareAsync(plan with {ProfileId=debian.Id,Image=plan.Image with {ProfileId=debian.Id}},debian,InstallerRecipes.Create(debian),Path.Combine(root,"debian"),false,default),"HdMediaRequired");
-            var modifiedReceipt=receipt with {Files=receipt.Files.Select(f=>f.RelativePath=="orchester/vmlinuz"?f with {Sha256=new string('0',64)}:f).ToImmutableArray()};
+            var tamperedKernel=await File.ReadAllBytesAsync(Path.Combine(staged,"orchester","vmlinuz"));
+            var modifiedReceipt=receipt with {Files=receipt.Files.Select(f=>f.RelativePath=="orchester/vmlinuz"?f with {Sha256=Convert.ToHexString(SHA256.HashData(tamperedKernel)).ToLowerInvariant(),Length=tamperedKernel.Length}:f).ToImmutableArray()};
             await File.WriteAllTextAsync(Path.Combine(staged,"staging.json"),JsonSerializer.Serialize(modifiedReceipt));
             await RefusesAsync(()=>staging.VerifyAsync(staged,plan,profile,default),"StagingChanged");
             var target=new AutomationTarget("NVME-SERIAL-1234",5,Guid.NewGuid(),6,Guid.NewGuid(),true,true);
-            var options=new UnattendedOptions("en_US.UTF-8","us","Etc/UTC","orchester","tester","$6$abcdefgh$"+new string('A',86),target,["curl"]);
+            var options=new UnattendedOptions("en_US.UTF-8","us","Etc/UTC","orchester","tester","$6$rounds=100000$abcdefghijklmnop$"+new string('A',85)+".",target,["curl"]);
             var config=UnattendedGenerator.Generate(profile,plan,options);
             using(var payload=JsonDocument.Parse(config.Content[14..]))Check(payload.RootElement.GetProperty("autoinstall").GetProperty("identity").GetProperty("username").GetString()=="tester","Ubuntu cloud-config JSON is valid YAML data");
             Check(config.PreviewOnly&&!config.Content.Contains("wipe"),"automation preview has no whole-disk wipe");
@@ -77,6 +80,7 @@ public static class AdvancedChecks {
             firmware.Write("BootNext",[2,0]);Refuses(()=>boot.RequestOneTimeBoot(bootOwned),"BootConfigurationChanged");
             var changed=firmware.Read("Boot7000")!;changed[^5]^=1;firmware.Write("Boot7000",changed);
             Refuses(()=>boot.RemoveOwned(bootOwned),"BootOwnershipMismatch");
+            Refuses(()=>boot.Register(plan.OperationId,owned,512,@"\EFI\ORCHESTER\shim.efi"),"BootConfigurationChanged");
             Refuses(ReleaseGate.RequireNativeWrites,"ExecutionUnavailable");
             var shrunk=disk with {Partitions=[source with {Length=source.Length-plan.RequestedBytes-plan.StagingBytes}]};
             StorageStatePolicy.ValidateAfterShrink(plan,shrunk);Check(true,"expected post-shrink geometry accepted");
@@ -101,7 +105,12 @@ public static class AdvancedChecks {
             var failed=executable with {OperationId=Guid.NewGuid()};var failing=new ExecutionCoordinator(executionRoot,new FixtureBackend {FailStorage=true});
             try{await failing.PrepareAsync(failed,PlanGuard.Fingerprint(failed),default);throw new Exception("Expected simulated interruption");}catch(IOException){}
             Check(await failing.InspectRecoveryAsync(failed.OperationId,default)==OperationPhase.RECOVERY_REQUIRED,"partial storage failure requires recovery");
-            string recordPath=Path.Combine(executionRoot,plan.OperationId.ToString("D"),"execution.jsonl");await File.AppendAllTextAsync(recordPath,"{partial");
+            string recordPath=Path.Combine(executionRoot,plan.OperationId.ToString("D"),"execution.jsonl");
+            string[] validHistory=await File.ReadAllLinesAsync(recordPath);string[] forgedHistory=validHistory.ToArray();
+            var forgedRecord=JsonSerializer.Deserialize<ExecutionRecord>(forgedHistory[^1])! with {Phase=OperationPhase.COMPLETED};
+            forgedHistory[^1]=JsonSerializer.Serialize(forgedRecord);await File.WriteAllLinesAsync(recordPath,forgedHistory);
+            Check(await coordinator.InspectRecoveryAsync(plan.OperationId,default)==OperationPhase.RECOVERY_REQUIRED,"execution journal cannot assert completion without evidence");
+            await File.WriteAllLinesAsync(recordPath,validHistory);await File.AppendAllTextAsync(recordPath,"{partial");
             Check(await coordinator.InspectRecoveryAsync(plan.OperationId,default)==OperationPhase.RECOVERY_REQUIRED,"truncated critical journal refuses resume");
             using(var key=RSA.Create(2048)) {
                 var update=new ReleaseUpdateManifest(1,"0.3.0","win-x64",new("https://example.org/update.exe"),new string('A',64),new string('B',64));

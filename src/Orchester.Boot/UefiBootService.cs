@@ -18,6 +18,7 @@ public sealed class UefiBootService(IFirmwareVariables variables) {
     public BootEntryOwnership Register(Guid operationId, OwnedPartition partition, int sectorSize, string path) {
         byte[] option = UefiLoadOption.Create(operationId, partition, sectorSize, path);
         var order = ReadOrder(variables.Read("BootOrder"));
+        if(variables.Read("BootNext") is not null)throw new SafetyException("BootConfigurationChanged");
         // Never modify an existing variable and never change the persistent boot order.
         for (int id = 0x7000; id < 0x7100; id++) {
             ushort number = (ushort)id;

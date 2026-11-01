@@ -4,20 +4,23 @@
 
 Native Windows x64 utility for preparing Debian/Ubuntu dual boot without removable media. Built with C#, .NET 10, WPF and MVVM. English and Russian are available at runtime.
 
-## Current release: 0.1 foundation preview
+## Current build: execution-services engineering preview
 
-This repository implements the read-only foundation and the contracts for subsequent execution releases. **It does not yet install an operating system.** No storage mutation, firmware mutation, automatic reboot, unattended configuration, or boot repair is enabled. Those boundaries fail closed in the engine as well as the UI. A production 1.0 release requires the installation and hardware evidence described in [implementation status](docs/implementation-status.md).
+The native bilingual application supports disk inspection, image verification, exact dry-run planning, **real directory staging bundles**, recovery diagnostics and **elevated read-only firmware inspection**. It also contains typed, tested services for Windows storage operations, UEFI one-time boot ownership, persistent execution, Ubuntu/Debian configuration previews, secure temporary credentials, completion evidence and authenticated updates.
 
-Implemented:
+**It does not yet perform OS installation.** Native partition/firmware writes are compiled off. Production backend composition, trusted boot-chain deployment, privileged mutation authorization, installer completion transport and release-specific VM/hardware qualification remain open. All bundled release profiles are unvalidated. Read the [requirements matrix](docs/implementation-status.md) for exact status.
 
-- Seven-stage bilingual wizard, five navigation sections, persistent settings, light/dark appearance, native accessible controls, per-monitor DPI support.
-- Windows Storage cmdlet/CIM discovery of disk identities, GPT GUIDs, geometry, filesystem health, encryption observations and supported NTFS shrink limits. Unknown or unavailable observations remain unknown and block planning.
-- Versioned non-executable distribution catalog, built-in Ubuntu, Debian and Linux Mint inspection adapters. Every bundled release is explicitly **unvalidated** for execution.
-- Resumable streamed HTTPS downloads, progress/rate reporting, bandwidth limiting, SHA-256 verification with independently authenticated user-supplied digests, and local ISO import.
-- Bounded ISO9660 inspection of profile kernel/initrd paths and PE x64 EFI components. This does not validate Secure Boot signatures or identify an OS from filenames alone.
-- Immutable partition plans, storage revalidation, explicit dry-run approval, current/proposed partition maps, staging capacity calculation.
-- Durable JSON manifests and JSON Lines journal, guarded state transitions, safe cancellation, interrupted-record detection and diagnostic exports with an explicit field allowlist.
-- Typed helper request contract and independent plan policy. Privileged mutation commands are rejected; no elevated helper is shipped in this preview.
+Implemented additions since the foundation:
+
+- Bounded ISO9660 extraction and source-authenticated staging receipts; explicit FAT32 limits, exclusive workspaces and interruption detection.
+- GPT UEFI device-path parsing, boot inventory, temporary-entry/BootNext policies and verified cleanup, with gated native firmware APIs.
+- A separate administrator helper with SID-restricted named pipes, launched-process verification, nonce authentication, bounded frames and read-only typed commands.
+- Fixed Windows-supported shrink/create/format/delete code, topology/ownership revalidation, and a flushed write-ahead execution coordinator. Native writes remain gated.
+- Ubuntu autoinstall and Debian preseed previews; strong hashed-password input, private temporary storage, no automatic Debian partition selection and guided-only Mint.
+- Completion evidence/installation registry and dependency-aware cleanup services.
+- Publisher-signed update metadata, downgrade rejection, streamed SHA-256, Authenticode publisher pinning and a production signing script. No update is executed automatically.
+
+The original seven-stage WPF wizard, complete live en-US/ru-RU localization, light/dark themes, resumable downloads, storage visualizer, durable foundation journals and redacted diagnostic exports remain available.
 
 ## Build and run
 
@@ -45,12 +48,14 @@ The portable core checks also run on Linux with .NET 10. WPF requires Windows. T
 4. Choose a healthy eligible GPT disk, unlocked unencrypted NTFS source partition, and Linux allocation in GiB. Staging space is additional to this allocation.
 5. Review the current/proposed maps and the explicit change list. Authorize saving the exact dry-run record.
 6. Save the operation. The journal remains at `PLAN_APPROVED`, indicating preparation has not executed. The final stage explains the installer handoff gate.
-7. Use Recovery to inspect records and export redacted diagnostics.
+7. Prepare and verify an inspection bundle from stage 6. This copies files only; it does not create bootable installation media.
+8. Use Recovery to inspect records, read firmware entries through UAC, and export redacted diagnostics.
 
 Data is stored beneath `%LOCALAPPDATA%\Orchester`. Manifests contain local device and image paths and should remain local. Shared diagnostic exports exclude those paths, mount letters, raw stable identities and image credentials. No passwords are collected. Logs use stable action codes rendered through complete language packs.
 
 ## Documentation
 
+- [Execution services and test preparation](docs/execution-services.md)
 - [Architecture and trust boundaries](docs/architecture.md)
 - [Requirements and implementation status](docs/implementation-status.md)
 - [Recovery procedures](docs/recovery.md)

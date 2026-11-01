@@ -46,7 +46,7 @@ public static class UnattendedGenerator {
             !Regex.IsMatch(o.Locale, @"\A[a-z]{2}_[A-Z]{2}(?:\.UTF-8)?\z") || !Regex.IsMatch(o.Keyboard, @"\A[a-z]{2}\z") ||
             !Regex.IsMatch(o.TimeZone, @"\A[A-Za-z_+-]+(?:/[A-Za-z0-9_+-]+){0,2}\z")) throw new SafetyException("InvalidInstallerOptions");
         // A strong existing crypt(3) SHA-512 hash only. Plaintext passwords cannot enter this API.
-        if (!Regex.IsMatch(o.PasswordHash, @"\A\$6\$(?:rounds=(?:[1-9][0-9]{4,8})\$)?[./A-Za-z0-9]{8,16}\$[./A-Za-z0-9]{86}\z"))
+        if (!Regex.IsMatch(o.PasswordHash, @"\A\$6\$rounds=[1-9][0-9]{5,8}\$[./A-Za-z0-9]{16}\$[./A-Za-z0-9]{85}[./01]\z"))
             throw new SafetyException("PasswordHashRequired");
         var t = o.Target;
         if (t.RootId == Guid.Empty || t.EfiId == Guid.Empty || t.RootId == t.EfiId || t.RootNumber < 1 || t.EfiNumber < 1 || t.RootNumber == t.EfiNumber ||

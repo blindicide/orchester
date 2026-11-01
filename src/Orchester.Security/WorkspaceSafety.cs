@@ -18,8 +18,9 @@ public static class WorkspaceSafety {
     }
     public static void RejectReparsePoints(string path) {
         for (string? current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current)) {
-            if ((File.Exists(current) || Directory.Exists(current)) &&
-                (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw new SafetyException("UnsafePath");
+            try {if((File.GetAttributes(current)&FileAttributes.ReparsePoint)!=0)throw new SafetyException("UnsafePath");}
+            catch(FileNotFoundException) { }
+            catch(DirectoryNotFoundException) { }
         }
     }
     public static void MakePrivate(string path, bool directory) {

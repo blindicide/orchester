@@ -85,10 +85,25 @@ public sealed class ExecutionCoordinator(string root, IExecutionBackend backend)
         } catch (JsonException) { throw new SafetyException("JournalIncomplete"); }
         var savedPlan = JsonSerializer.Deserialize<InstallationPlan>(await File.ReadAllTextAsync(Path.Combine(Folder(id), "plan.json"), ct)) ?? throw new SafetyException("JournalIncomplete");
         if (savedPlan.OperationId != id || (fingerprint is not null && PlanGuard.Fingerprint(savedPlan) != fingerprint)) throw new SafetyException("JournalIncomplete");
+        string[] actions=["Preflight","PrepareStorage","StageInstaller","ConfigureBoot","RequestBoot"];
+        OperationPhase[] phases=[OperationPhase.PLAN_APPROVED,OperationPhase.STORAGE_PREPARED,OperationPhase.INSTALLER_STAGED,OperationPhase.BOOT_CONFIGURED,OperationPhase.REBOOT_REQUESTED];
+        int step=0;bool pending=false;OperationPhase prior=OperationPhase.PLAN_APPROVED;
         for (int i = 0; i < entries.Count; i++) {
-            var entry = entries[i];
-            if (entry.Status == "VERIFIED" && (i == 0 || entries[i-1].Status != "INTENT" || entries[i-1].Action != entry.Action)) throw new SafetyException("JournalIncomplete");
-            if (entry.Status == "STOPPED" && i != entries.Count-1) throw new SafetyException("JournalIncomplete");
+            var entry=entries[i];
+            if(!Enum.IsDefined(entry.Phase))throw new SafetyException("JournalIncomplete");
+            if(entry.Status=="STOPPED") {
+                if(i!=entries.Count-1 || entry.Phase is not (OperationPhase.FAILED or OperationPhase.CANCELLED or OperationPhase.RECOVERY_REQUIRED or OperationPhase.UNKNOWN_EXTERNAL_STATE))throw new SafetyException("JournalIncomplete");
+                continue;
+            }
+            if(step>=actions.Length||entry.Action!=actions[step])throw new SafetyException("JournalIncomplete");
+            if(entry.Status=="INTENT") {
+                if(pending||entry.Phase!=prior||entry.Receipt is not null)throw new SafetyException("JournalIncomplete");
+                pending=true;
+            } else {
+                if(!pending||entry.Phase!=phases[step])throw new SafetyException("JournalIncomplete");
+                if(step is 1 or 2 or 3 && (entry.Receipt is null||entry.Receipt.ResourceId==Guid.Empty||entry.Receipt.Sha256.Length!=64||!entry.Receipt.Sha256.All(Uri.IsHexDigit)))throw new SafetyException("JournalIncomplete");
+                pending=false;prior=entry.Phase;step++;
+            }
         }
         return entries.ToImmutable();
     }
@@ -97,7 +112,7 @@ public sealed class ExecutionCoordinator(string root, IExecutionBackend backend)
             var records = await ReadAsync(id, ct);
             if (records.IsEmpty || records[^1].Status == "INTENT") return OperationPhase.RECOVERY_REQUIRED;
             return records[^1].Phase;
-        } catch (Exception e) when (e is IOException or SafetyException) { return OperationPhase.RECOVERY_REQUIRED; }
+        } catch (Exception e) when (e is IOException or SafetyException or JsonException) { return OperationPhase.RECOVERY_REQUIRED; }
     }
     private string Folder(Guid id) {
         if (id == Guid.Empty) throw new SafetyException("UnauthorizedRequest");
