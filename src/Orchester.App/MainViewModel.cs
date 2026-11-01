@@ -208,7 +208,7 @@ public sealed class MainViewModel : INotifyPropertyChanged {
  private async Task PrepareBundleAsync(CancellationToken ct) {
   var current=plan??throw new SafetyException("PlanRequired");
   var profile=Release??throw new SafetyException("AdapterMismatch");
-  Settings.Save();
+  if(!Path.IsPathFullyQualified(Settings.StagingDirectory))throw new SafetyException("UnsafePath");
   await new StagingWorkspace().PrepareAsync(current,profile,InstallerRecipes.Create(profile),Settings.StagingDirectory,false,ct);
   string folder=Path.Combine(Settings.StagingDirectory,current.OperationId.ToString("D"));
   await File.WriteAllTextAsync(Path.Combine(folder,"grub-preview.cfg"),InstallerRecipes.GrubPreview(profile),ct);

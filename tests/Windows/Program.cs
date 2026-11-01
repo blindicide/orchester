@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using System.IO;
+using System.Diagnostics;
+using Orchester.Security;
 using System.Security.Cryptography;
 using Orchester.Core;
 using Orchester.Engine;
@@ -35,6 +37,20 @@ public static class Program {
   var live=await new WindowsStorageDiscovery(includeSafetyDetails:false).DiscoverAsync(default);
   if(live.IsEmpty || live.Any(d=>d.Capacity<=0 || d.Partitions.Any(p=>p.Offset<0 || p.Length<=0)))throw new Exception("Read-only Windows storage discovery failed");
   Console.WriteLine($"PASS live read-only host and storage discovery: {live.Length} disks (no mutation)");
+  string helper=Path.Combine(AppContext.BaseDirectory,"helper","Orchester.Helper.dll");
+  foreach(bool authorized in new[]{true,false}) {
+   string pipe="Orchester-"+Convert.ToHexString(RandomNumberGenerator.GetBytes(16));string nonce=HelperProtocol.NewNonce();
+   var start=new ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true};
+   foreach(string argument in new[]{helper,"--pipe",pipe,"--nonce",nonce})start.ArgumentList.Add(argument);
+   using var process=Process.Start(start)??throw new Exception("Helper launch failed");
+   using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(25));
+   var result=await HelperProtocol.ExchangeAsync(pipe,new(1,Guid.NewGuid(),authorized?nonce:HelperProtocol.NewNonce(),DiagnosticCommand.InspectHost,null,null),timeout.Token,process.Id);
+   await process.WaitForExitAsync(timeout.Token);
+   if(result.Success!=authorized || process.ExitCode!=(authorized?0:1))throw new Exception("Helper authentication failed");
+  }
+  Console.WriteLine("PASS native named-pipe helper exchange and unauthorized nonce rejection");
+  try {AuthenticodeVerifier.VerifyPublisher(typeof(App).Assembly.Location,new string('A',64));throw new Exception("Unsigned executable accepted");}
+  catch(Orchester.Core.SafetyException error) when(error.Code=="ExecutableSignatureInvalid") {Console.WriteLine("PASS unsigned executable rejected");}
   var root=Path.Combine(Path.GetTempPath(),"OrchesterUi-"+Guid.NewGuid());Directory.CreateDirectory(root);
   try {
    const long gib=1024L*1024*1024;
@@ -51,6 +67,11 @@ public static class Program {
    model.Approved=true;await ((AsyncCommand)model.SavePlanCommand).ExecuteAsync();
    var id=store.ListOperations().Single();
    if((await store.LoadAsync(id,default)).Phase!=OperationPhase.PLAN_APPROVED || model.Stage!=5)throw new Exception("Dry-run journal phase failed");
+   model.Settings.StagingDirectory=Path.Combine(root,"bundle");
+   await ((AsyncCommand)model.PrepareBundleCommand).ExecuteAsync();
+   await ((AsyncCommand)model.VerifyBundleCommand).ExecuteAsync();
+   if(!File.Exists(Path.Combine(model.Settings.StagingDirectory,id.ToString("D"),"staging.json")))throw new Exception("UI bundle preparation failed: "+model.Status);
+   Console.WriteLine("PASS UI staging bundle preparation and verification");
    model.Language="ru-RU";if(!model.Operations.Single().Contains("План утверждён"))throw new Exception("Live operation localization failed");
    await ((AsyncCommand)model.NextCommand).ExecuteAsync();
    if(model.Stage!=6 || (await store.LoadAsync(id,default)).Phase!=OperationPhase.PLAN_APPROVED)throw new Exception("False installation completion");

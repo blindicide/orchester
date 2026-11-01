@@ -24,11 +24,43 @@ public static class AuthenticodeVerifier {
         try {
             Marshal.StructureToPtr(new TrustFile {Size=(uint)Marshal.SizeOf<TrustFile>(),Path=name},info,false);
             if(WinVerifyTrust(new IntPtr(-1),ref action,ref data)!=0)throw new SafetyException("ExecutableSignatureInvalid");
-            using var signed=X509Certificate.CreateFromSignedFile(path);
-            using var certificate=X509CertificateLoader.LoadCertificate(signed.Export(X509ContentType.Cert));
+            using var certificate=LoadSigner(path);
             byte[] digest=SHA256.HashData(certificate.PublicKey.ExportSubjectPublicKeyInfo());
             if(!CryptographicOperations.FixedTimeEquals(digest,Convert.FromHexString(expectedPublicKeySha256)))throw new SafetyException("ExecutableSignatureInvalid");
         } catch(CryptographicException){throw new SafetyException("ExecutableSignatureInvalid");}
         finally {data.StateAction=2;WinVerifyTrust(new IntPtr(-1),ref action,ref data);Marshal.FreeHGlobal(info);Marshal.FreeCoTaskMem(name);}
     }
+    [StructLayout(LayoutKind.Sequential)] private struct CertificateContext {public uint Encoding;public IntPtr Encoded;public uint Length;}
+    [DllImport("crypt32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CryptQueryObject(uint objectType,string path,uint contentFlags,uint formatFlags,uint flags,out uint encoding,out uint content,out uint format,out IntPtr store,out IntPtr message,out IntPtr context);
+    [DllImport("crypt32.dll",SetLastError=true)]
+    [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CryptMsgGetParam(IntPtr message,uint parameter,uint index,IntPtr data,ref uint length);
+    [DllImport("crypt32.dll",SetLastError=true)] private static extern IntPtr CertFindCertificateInStore(IntPtr store,uint encoding,uint flags,uint findType,IntPtr findData,IntPtr previous);
+    [DllImport("crypt32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CertFreeCertificateContext(IntPtr certificate);
+    [DllImport("crypt32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CertCloseStore(IntPtr store,uint flags);
+    [DllImport("crypt32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool CryptMsgClose(IntPtr message);
+    [SupportedOSPlatform("windows")]
+    private static X509Certificate2 LoadSigner(string path) {
+        IntPtr store=IntPtr.Zero,message=IntPtr.Zero,certificate=IntPtr.Zero,info=IntPtr.Zero;
+        try {
+            // Read embedded PKCS#7 signer metadata; WinVerifyTrust above validates its signature and chain.
+            if(!CryptQueryObject(1,path,1u<<10,2,0,out _,out _,out _,out store,out message,out _))throw new SafetyException("ExecutableSignatureInvalid");
+            uint length=0;
+            if(!CryptMsgGetParam(message,7,0,IntPtr.Zero,ref length)||length==0||length>1024*1024)throw new SafetyException("ExecutableSignatureInvalid");
+            info=Marshal.AllocHGlobal((int)length);
+            if(!CryptMsgGetParam(message,7,0,info,ref length))throw new SafetyException("ExecutableSignatureInvalid");
+            certificate=CertFindCertificateInStore(store,0x10001,0,0xB0000,info,IntPtr.Zero);
+            if(certificate==IntPtr.Zero)throw new SafetyException("ExecutableSignatureInvalid");
+            var context=Marshal.PtrToStructure<CertificateContext>(certificate);
+            if(context.Length==0||context.Length>1024*1024)throw new SafetyException("ExecutableSignatureInvalid");
+            var bytes=new byte[checked((int)context.Length)];Marshal.Copy(context.Encoded,bytes,0,bytes.Length);
+            return X509CertificateLoader.LoadCertificate(bytes);
+        } finally {
+            if(certificate!=IntPtr.Zero)CertFreeCertificateContext(certificate);
+            if(info!=IntPtr.Zero)Marshal.FreeHGlobal(info);
+            if(message!=IntPtr.Zero)CryptMsgClose(message);
+            if(store!=IntPtr.Zero)CertCloseStore(store,0);
+        }
+    }
+
 }
