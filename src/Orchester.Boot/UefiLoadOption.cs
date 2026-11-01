@@ -6,7 +6,7 @@ namespace Orchester.Boot;
 
 public static class UefiLoadOption {
     public static byte[] Create(Guid operationId, OwnedPartition partition, int sectorSize, string efiPath) {
-        if (operationId == Guid.Empty || partition.OperationId != operationId || partition.PartitionId == Guid.Empty ||
+        if (partition.FileSystem!="FAT32" || !Guid.TryParse(partition.Type,out var gptType) || gptType!=new Guid("C12A7328-F81F-11D2-BA4B-00A0C93EC93B") || operationId == Guid.Empty || partition.OperationId != operationId || partition.PartitionId == Guid.Empty ||
             partition.Number < 1 || sectorSize is not (512 or 4096) || partition.Offset <= 0 || partition.Length <= 0 ||
             partition.Offset % sectorSize != 0 || partition.Length % sectorSize != 0 ||
             !System.Text.RegularExpressions.Regex.IsMatch(efiPath, @"\A\\EFI\\ORCHESTER\\[a-zA-Z0-9_-]+\.efi\z"))
