@@ -1,0 +1,15 @@
+<Solution>
+  <Project Path="src/Orchester.Core/Orchester.Core.csproj" />
+  <Project Path="src/Orchester.Engine/Orchester.Engine.csproj" />
+  <Project Path="src/Orchester.Storage/Orchester.Storage.csproj" />
+  <Project Path="src/Orchester.Boot/Orchester.Boot.csproj" />
+  <Project Path="src/Orchester.Images/Orchester.Images.csproj" />
+  <Project Path="src/Orchester.Security/Orchester.Security.csproj" />
+  <Project Path="src/Orchester.Recovery/Orchester.Recovery.csproj" />
+  <Project Path="src/Orchester.Localization/Orchester.Localization.csproj" />
+  <Project Path="src/Orchester.Adapters/Orchester.Adapters.csproj" />
+  <Project Path="src/Orchester.App/Orchester.App.csproj" />
+  <Project Path="tests/Unit/Orchester.Tests.csproj" />
+  <Project Path="tests/Windows/Orchester.UiSmoke.csproj" />
+  <Project Path="src/Orchester.Helper/Orchester.Helper.csproj" />
+</Solution>

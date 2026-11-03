@@ -1,0 +1,63 @@
+name: Build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      windows_build:
+        description: Build and package on Windows
+        type: boolean
+        default: false
+      package_installer:
+        description: Compile the Windows setup package
+        type: boolean
+        default: false
+      windows_validation:
+        description: Run existing Windows validation (operator requested)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: orchester-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet build src/Orchester.App/Orchester.App.csproj -c Release -p:EnableWindowsTargeting=true
+      - run: dotnet build src/Orchester.Helper/Orchester.Helper.csproj -c Release -p:EnableWindowsTargeting=true
+      - run: dotnet publish src/Orchester.App/Orchester.App.csproj -c Release -r win-x64 --self-contained true -p:EnableWindowsTargeting=true -o artifacts/Orchester
+      - run: dotnet publish src/Orchester.Helper/Orchester.Helper.csproj -c Release -r win-x64 --self-contained true -p:EnableWindowsTargeting=true -o artifacts/Orchester
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Orchester-win-x64
+          path: artifacts/Orchester/
+  windows:
+    if: github.event_name == 'workflow_dispatch' && inputs.windows_build
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet build Orchester.slnx -c Release
+      - if: inputs.windows_validation
+        run: ./tests/Windows/Run-Checks.ps1
+        timeout-minutes: 3
+      - run: dotnet publish src/Orchester.App/Orchester.App.csproj -c Release -r win-x64 --self-contained true -o artifacts/Orchester
+      - run: dotnet publish src/Orchester.Helper/Orchester.Helper.csproj -c Release -r win-x64 --self-contained true -o artifacts/Orchester
+      - if: inputs.package_installer
+        shell: pwsh
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging/Orchester.iss'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Orchester-windows-built
+          path: |
+            artifacts/Orchester/
+            artifacts/Installer/

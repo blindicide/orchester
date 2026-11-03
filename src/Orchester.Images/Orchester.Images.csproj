@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup></PropertyGroup><ItemGroup><EmbeddedResource Include="../../catalog/catalog.json" LogicalName="Orchester.BuiltinCatalog"/><ProjectReference Include="../Orchester.Security/Orchester.Security.csproj"/><ProjectReference Include="../Orchester.Core/Orchester.Core.csproj" /></ItemGroup></Project>
